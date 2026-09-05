@@ -18,12 +18,11 @@
       --radius-lg: 16px;
       --radius-md: 10px;
 
-      /* Màu sắc định danh các thẻ kho */
       --bg-opening: #f1f5f9; --text-opening: #475569;
-      --bg-import: #dcfce7;  --text-import: #15803d;  /* Nhập / Nấu thêm */
-      --bg-export: #e0f2fe;  --text-export: #0369a1;  /* Xuất / Đã bán */
-      --bg-return: #f3e8ff;  --text-return: #6b21a8;  /* Thu hồi */
-      --bg-waste: #ffe4e6;   --text-waste: #be123c;   /* Hủy / Hao hụt */
+      --bg-import: #dcfce7;  --text-import: #15803d;  
+      --bg-export: #e0f2fe;  --text-export: #0369a1;  
+      --bg-return: #f3e8ff;  --text-return: #6b21a8;  
+      --bg-waste: #ffe4e6;   --text-waste: #be123c;   
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -41,15 +40,20 @@
     .header-actions button { background: rgba(255,255,255,0.22); color: #fff; border: 1px solid rgba(255,255,255,0.3); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; backdrop-filter: blur(4px); }
     .header-actions button.btn-logout { background: rgba(239, 68, 68, 0.85); border: none; }
 
-    /* Content */
+    /* Content & Filters */
     main { padding: 14px; }
-    .filter-wrapper { margin-bottom: 12px; }
+    .filter-wrapper { margin-bottom: 10px; }
     .filter-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
     .filter-scroll::-webkit-scrollbar { display: none; }
     .filter-chip { background: #fff; border: 1px solid var(--border-color); padding: 7px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; color: var(--text-muted); white-space: nowrap; cursor: pointer; }
     .filter-chip.active { background: var(--brand-blue); color: #fff; border-color: var(--brand-blue); box-shadow: 0 2px 6px rgba(0,151,210,0.3); }
 
-    .search-box { width: 100%; padding: 12px 16px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 14px; margin-bottom: 14px; background: #fff; outline: none; }
+    .date-filter-card { background: #fff; padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 12px; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+    .date-group { display: flex; flex-direction: column; flex: 1; }
+    .date-group label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 2px; }
+    .date-group input { border: 1px solid var(--border-color); border-radius: 6px; padding: 5px 8px; font-size: 12px; font-weight: 600; color: var(--text-main); outline: none; background: #f8fafc; }
+
+    .search-box { width: 100%; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 14px; margin-bottom: 12px; background: #fff; outline: none; }
 
     /* Card UI */
     .card-list { display: flex; flex-direction: column; gap: 12px; }
@@ -59,7 +63,6 @@
     .item-unit { font-size: 13px; color: var(--text-muted); margin-top: 2px; font-weight: 500; }
     .stock-qty { font-weight: 800; font-size: 18px; color: var(--brand-blue); }
 
-    /* Lưới các thông số tồn kho */
     .stock-stats { display: grid; gap: 6px; }
     .stock-stats.grid-3 { grid-template-columns: repeat(3, 1fr); }
     .stock-stats.grid-5 { grid-template-columns: repeat(3, 1fr); }
@@ -76,10 +79,10 @@
 
     /* Nav */
     .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid var(--border-color); box-shadow: 0 -4px 20px rgba(0,0,0,0.06); z-index: 99; }
-    .nav-inner { max-width: 480px; margin: 0 auto; display: flex; justify-space-around: space-around; }
+    .nav-inner { max-width: 480px; margin: 0 auto; display: flex; justify-content: space-around; }
     .nav-item { background: none; border: none; padding: 10px 0 8px; font-size: 11px; color: var(--text-muted); font-weight: 600; cursor: pointer; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
     .nav-item .nav-icon { font-size: 20px; }
-    .nav-item.active { color: var(--brand-blue); font-weight: 700; background-color: #0097d2 }
+    .nav-item.active { color: var(--brand-blue); font-weight: 700; }
 
     /* Login */
     .login-wrapper { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-dark)); }
@@ -125,7 +128,6 @@
     .link-btn.red { color: var(--danger-color); }
     .notice-box { background: #e0f2fe; color: #0369a1; padding: 12px; border-radius: 10px; font-size: 13px; margin-bottom: 14px; line-height: 1.4; }
 
-    /* CSS cho danh sách Lưu tạm */
     .temp-list-box { background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 10px; margin-top: 14px; }
     .temp-item-row { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-color); margin-top: 6px; font-size: 13px; }
   </style>
@@ -145,7 +147,7 @@ const SUPABASE_KEY = 'sb_publishable_V-ldzvRj-UpMP49uXmBHLg_dOtd2Png';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ==========================================
-// 2. BIẾN TOÀN CỤC
+// 2. BIẾN TOÀN CỤC & BỘ LỌC NGÀY
 // ==========================================
 let currentUser = null;
 let shopLocation = null;
@@ -157,7 +159,13 @@ let draftItem = null;
 let draftTab = null;
 let editLogId = null;
 let editingItemId = null;
-let tempDraftList = []; // Mảng chứa danh sách thao tác lưu tạm
+let tempDraftList = []; 
+
+// Yêu cầu: Mặc định luôn là ngày hiện tại (Hôm nay)
+const todayStr = new Date().toISOString().split('T')[0];
+
+let startDate = todayStr;
+let endDate = todayStr;
 
 let accounts = [];
 let raw = [];
@@ -195,6 +203,7 @@ async function fetchInitialData() {
         actionType: l.action_type || l.actionType,
         user: l.user_name || l.user,
         username: l.user_username || l.username || '',
+        createdAt: l.created_at || new Date().toISOString(),
         time: l.created_at ? new Date(l.created_at).toLocaleString('vi-VN') : (l.time || '')
       }));
       localStorage.setItem('awan_logs_backup', JSON.stringify(logs));
@@ -218,8 +227,45 @@ function roleLabel(role) { return ({ admin: 'Admin Owner', manager: 'Quản Lý'
 function dateTime() { return new Date().toLocaleString('vi-VN'); }
 function fmt(num) { return Number(num || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 }); }
 
-function getStockRaw(item) { return (item.opening || 0) + (item.imported || 0) - (item.exported || 0); }
-function getStockFG(item) { return (item.opening || 0) + (item.production || 0) - (item.sales || 0) + (item.returned || 0) - (item.waste || 0); }
+// Lọc nhật ký theo ngày được chọn
+function getFilteredLogs() {
+  const start = new Date(startDate + 'T00:00:00');
+  const end = new Date(endDate + 'T23:59:59');
+
+  return logs.filter(l => {
+    const logDate = new Date(l.createdAt || Date.now());
+    return logDate >= start && logDate <= end;
+  });
+}
+
+// Yêu cầu: Tính tổng hợp số liệu nhưng vẫn trả về tồn gốc hiện tại để giữ độ tổng quan
+function getRawStatsByDate(item) {
+  const fLogs = getFilteredLogs().filter(l => l.tab === 'raw' && l.itemId === item.id);
+  
+  // Tổng hợp số liệu theo THỜI GIAN ĐÃ CHỌN
+  const imported = fLogs.filter(l => l.actionType === 'import').reduce((sum, l) => sum + l.qty, 0);
+  const exported = fLogs.filter(l => l.actionType === 'export').reduce((sum, l) => sum + l.qty, 0);
+  
+  // Tồn kho cuối thực tế (của toàn bộ dữ liệu lịch sử)
+  const stock = (item.opening || 0) + (item.imported || 0) - (item.exported || 0);
+
+  return { opening: item.opening || 0, imported, exported, stock };
+}
+
+function getFGStatsByDate(item) {
+  const fLogs = getFilteredLogs().filter(l => l.tab === 'finished' && l.itemId === item.id);
+  
+  // Tổng hợp số liệu theo THỜI GIAN ĐÃ CHỌN
+  const sales = fLogs.filter(l => l.actionType === 'sales').reduce((sum, l) => sum + l.qty, 0);
+  const production = fLogs.filter(l => l.actionType === 'production').reduce((sum, l) => sum + l.qty, 0);
+  const returned = fLogs.filter(l => l.actionType === 'return').reduce((sum, l) => sum + l.qty, 0);
+  const waste = fLogs.filter(l => l.actionType === 'waste').reduce((sum, l) => sum + l.qty, 0);
+
+  // Tồn kho cuối thực tế (của toàn bộ dữ liệu lịch sử)
+  const stock = (item.opening || 0) + (item.production || 0) - (item.sales || 0) + (item.returned || 0) - (item.waste || 0);
+
+  return { opening: item.opening || 0, sales, production, returned, waste, stock };
+}
 
 async function syncItemToSupabase(tab, item) {
   const table = tab === 'raw' ? 'raw_items' : 'fg_items';
@@ -280,7 +326,8 @@ function openItemActions(tab, i) {
 function renderDraftModal() {
   const item = (draftTab === 'raw' ? raw : fg)[draftItem];
   if (!item) return;
-  const stock = draftTab === 'raw' ? getStockRaw(item) : getStockFG(item);
+  
+  const stats = draftTab === 'raw' ? getRawStatsByDate(item) : getFGStatsByDate(item);
   const types = draftTab === 'raw' ?
     [{ v: 'import', t: '＋ Nhập kho' }, { v: 'export', t: '− Xuất kho' }] :
     [{ v: 'sales', t: '− Xuất bán' }, { v: 'production', t: '＋ Nấu thêm' }, { v: 'return', t: '↩ Thu hồi' }, { v: 'waste', t: '− Hủy món' }];
@@ -290,7 +337,7 @@ function renderDraftModal() {
   document.getElementById('sheet').innerHTML = `
     <h2 style="font-size:18px">${item.name}</h2>
     <div style="font-size:13px;color:var(--text-muted);margin-top:2px">Đơn vị tính: <b>${item.unit}</b></div>
-    <div class="notice-box" style="margin-top:10px">Tồn kho hiện tại: <b style="font-size:16px">${fmt(stock)} ${item.unit}</b></div>
+    <div class="notice-box" style="margin-top:10px">Tồn kho hiện tại: <b style="font-size:16px">${fmt(stats.stock)} ${item.unit}</b></div>
     
     <div class="form-group">
       <label>Chọn thao tác</label>
@@ -352,7 +399,6 @@ async function confirmAllDrafts() {
   const item = (draftTab === 'raw' ? raw : fg)[draftItem];
   const inputQty = Number(document.getElementById('draftAmount')?.value || 0);
 
-  // Nếu người dùng có nhập số lượng trực tiếp mà chưa bấm Lưu Tạm -> Tự động đưa vào danh sách
   if (tempDraftList.length === 0 && inputQty > 0) {
     const type = document.getElementById('draftType').value;
     tempDraftList.push({ type, qty: inputQty, actionName: actionLabel(draftTab, type) });
@@ -366,12 +412,13 @@ async function confirmAllDrafts() {
   const payloadSupabaseList = [];
 
   for (const draft of tempDraftList) {
-    const before = draftTab === 'raw' ? getStockRaw(item) : getStockFG(item);
+    const before = (draftTab === 'raw' ? getRawStatsByDate(item) : getFGStatsByDate(item)).stock;
     applyDraftToItem(item, draftTab, draft.type, draft.qty);
-    const after = draftTab === 'raw' ? getStockRaw(item) : getStockFG(item);
+    const after = (draftTab === 'raw' ? getRawStatsByDate(item) : getFGStatsByDate(item)).stock;
 
     const logId = 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
     const timeNow = dateTime();
+    const isoNow = new Date().toISOString();
     const userName = `${currentUser.name} (${roleLabel(currentUser.role)})`;
 
     const newLogObj = {
@@ -387,6 +434,7 @@ async function confirmAllDrafts() {
       actionType: draft.type,
       user: userName,
       username: currentUser.username,
+      createdAt: isoNow,
       time: timeNow
     };
 
@@ -405,7 +453,7 @@ async function confirmAllDrafts() {
       action_type: draft.type,
       user_name: userName,
       user_username: currentUser.username,
-      created_at: new Date().toISOString()
+      created_at: isoNow
     });
   }
 
@@ -631,7 +679,6 @@ async function deleteItem(type, id) {
   openAdmin('items');
 }
 
-// SỬA / XÓA NHẬT KÝ THEO PHÂN QUYỀN
 function canEditLog(l) {
   if (!currentUser) return false;
   if (currentUser.role === 'admin' || currentUser.role === 'manager') return true;
@@ -681,7 +728,7 @@ async function saveLogEdit() {
   }
 
   l.qty = n;
-  l.after = l.tab === 'raw' ? getStockRaw(x) : getStockFG(x);
+  l.after = l.tab === 'raw' ? getRawStatsByDate(x).stock : getFGStatsByDate(x).stock;
   localStorage.setItem('awan_logs_backup', JSON.stringify(logs));
 
   closeModal();
@@ -719,60 +766,91 @@ async function deleteLog(id) {
   ]);
 }
 
-// VIEWS
+// VIEWS & COMPONENTS
+function dateFilterView() {
+  return `
+    <div class="date-filter-card">
+      <div class="date-group">
+        <label>Từ ngày</label>
+        <input type="date" value="${startDate}" onchange="startDate=this.value;render()">
+      </div>
+      <div style="font-weight:700;color:var(--text-muted);margin-top:12px">-</div>
+      <div class="date-group">
+        <label>Đến ngày</label>
+        <input type="date" value="${endDate}" onchange="endDate=this.value;render()">
+      </div>
+    </div>
+  `;
+}
+
 function loginView() {
   return `<div class="login-wrapper"><div class="login-card"><div class="login-brand">🧋</div><h1 style="text-align:center;color:var(--brand-blue);font-size:22px;margin-bottom:4px">AWAN TEA</h1><div style="text-align:center;color:var(--text-muted);font-size:13px;margin-bottom:20px">Đăng nhập hệ thống kho Cloud</div><div class="form-group"><label>Tên đăng nhập</label><input id="loginUser" placeholder="Nhập username..."></div><div class="form-group"><label>Mật khẩu</label><input id="loginPass" type="password" placeholder="••••••"></div><button class="btn-primary" onclick="login()">ĐĂNG NHẬP</button><div id="loginError" style="color:var(--danger-color);font-size:12px;margin-top:10px;text-align:center;display:none"></div></div></div>`;
 }
 
+// Yêu cầu: Vẫn render danh sách toàn bộ mặt hàng (list) dù ngày đó mặt hàng không có phát sinh giao dịch
 function rawView() {
   const groups = ['Tất cả', 'HỒNG PHÁT', 'TNT', 'BAO BÌ', 'Khác'];
   const list = raw.filter(x => (rawGroup === 'Tất cả' || x.group === rawGroup) && x.name.toLowerCase().includes(query.toLowerCase()));
   return `
     <div class="filter-wrapper"><div class="filter-scroll">${groups.map(g => `<button class="filter-chip ${rawGroup === g ? 'active' : ''}" onclick="rawGroup='${g}';render()">${g}</button>`).join('')}</div></div>
+    ${dateFilterView()}
     <input class="search-box" placeholder="🔍 Tìm kiếm nguyên liệu, bao bì..." value="${query}" oninput="query=this.value;render()">
-    <div class="card-list">${list.map((x, i) => { const c = getStockRaw(x); return `
+    <div class="card-list">${list.map((x, i) => { 
+      const st = getRawStatsByDate(x); 
+      return `
       <div class="inventory-card" onclick="openItemActions('raw',${raw.indexOf(x)})">
         <div class="card-head">
           <div><div class="item-name">${x.name}</div><div class="item-unit">ĐVT: ${x.unit}</div></div>
-          <div style="text-align:right"><span style="font-size:11px;color:var(--text-muted);display:block">Tồn Cuối</span><span class="stock-qty">${fmt(c)}</span></div>
+          <div style="text-align:right"><span style="font-size:11px;color:var(--text-muted);display:block">Tồn Cuối</span><span class="stock-qty">${fmt(st.stock)}</span></div>
         </div>
         <div class="stock-stats grid-3">
-          <div class="stat-box opening"><label>Tồn đầu</label><val>${fmt(x.opening)}</val></div>
-          <div class="stat-box import"><label>Nhập</label><val>${fmt(x.imported)}</val></div>
-          <div class="stat-box export"><label>Xuất</label><val>${fmt(x.exported)}</val></div>
+          <div class="stat-box opening"><label>Tồn đầu</label><val>${fmt(st.opening)}</val></div>
+          <div class="stat-box import"><label>Nhập</label><val>${fmt(st.imported)}</val></div>
+          <div class="stat-box export"><label>Xuất</label><val>${fmt(st.exported)}</val></div>
         </div>
-      </div>`; }).join('') || '<div class="empty-state">Chưa có dữ liệu nguyên liệu.</div>'}
+      </div>`; 
+    }).join('') || '<div class="empty-state">Chưa có dữ liệu nguyên liệu.</div>'}
     </div>`;
 }
 
+// Yêu cầu: Vẫn render danh sách toàn bộ thành phẩm (list) dù ngày đó không có phát sinh giao dịch
 function fgView() {
   const groups = ['Tất cả', 'Đồ uống', 'Topping', 'Khác'];
   const list = fg.filter(x => (fgGroup === 'Tất cả' || x.category === fgGroup) && x.name.toLowerCase().includes(query.toLowerCase()));
   return `
     <div class="filter-wrapper"><div class="filter-scroll">${groups.map(g => `<button class="filter-chip ${fgGroup === g ? 'active' : ''}" onclick="fgGroup='${g}';render()">${g}</button>`).join('')}</div></div>
+    ${dateFilterView()}
     <input class="search-box" placeholder="🔍 Tìm kiếm món, topping..." value="${query}" oninput="query=this.value;render()">
-    <div class="card-list">${list.map((x, i) => { const c = getStockFG(x); return `
+    <div class="card-list">${list.map((x, i) => { 
+      const st = getFGStatsByDate(x); 
+      return `
       <div class="inventory-card" onclick="openItemActions('fg',${fg.indexOf(x)})">
         <div class="card-head">
           <div><div class="item-name">${x.name}</div><div class="item-unit">ĐVT: ${x.unit}</div></div>
-          <div style="text-align:right"><span style="font-size:11px;color:var(--text-muted);display:block">Tồn Cuối</span><span class="stock-qty">${fmt(c)}</span></div>
+          <div style="text-align:right"><span style="font-size:11px;color:var(--text-muted);display:block">Tồn Cuối</span><span class="stock-qty">${fmt(st.stock)}</span></div>
         </div>
         <div class="stock-stats grid-5">
-          <div class="stat-box opening"><label>Tồn đầu</label><val>${fmt(x.opening)}</val></div>
-          <div class="stat-box export"><label>Đã bán</label><val>${fmt(x.sales)}</val></div>
-          <div class="stat-box import"><label>Nấu thêm</label><val>${fmt(x.production)}</val></div>
-          <div class="stat-box return"><label>Thu hồi</label><val>${fmt(x.returned)}</val></div>
-          <div class="stat-box waste"><label>Hủy</label><val>${fmt(x.waste)}</val></div>
+          <div class="stat-box opening"><label>Tồn đầu</label><val>${fmt(st.opening)}</val></div>
+          <div class="stat-box export"><label>Đã bán</label><val>${fmt(st.sales)}</val></div>
+          <div class="stat-box import"><label>Nấu thêm</label><val>${fmt(st.production)}</val></div>
+          <div class="stat-box return"><label>Thu hồi</label><val>${fmt(st.returned)}</val></div>
+          <div class="stat-box waste"><label>Hủy</label><val>${fmt(st.waste)}</val></div>
         </div>
-      </div>`; }).join('') || '<div class="empty-state">Chưa có dữ liệu thành phẩm.</div>'}
+      </div>`; 
+    }).join('') || '<div class="empty-state">Chưa có dữ liệu thành phẩm.</div>'}
     </div>`;
 }
 
 function auditView() {
+  const filteredLogs = getFilteredLogs();
   return `
+    ${dateFilterView()}
     <div class="card-list">
-      <div style="padding:14px;font-weight:700;background:#fff;border-radius:12px;border:1px solid var(--border-color);font-size:15px">📋 Lịch sử giao dịch Cloud</div>
-      ${logs.map(l => {
+      <div style="padding:14px;font-weight:700;background:#fff;border-radius:12px;border:1px solid var(--border-color);font-size:15px;display:flex;justify-content:space-between">
+        <span>📋 Lịch sử giao dịch</span>
+        <span style="color:var(--brand-blue)">${filteredLogs.length} mục</span>
+      </div>
+      ${filteredLogs.map(l => {
         const allowEdit = canEditLog(l);
         return `
         <div style="background:#fff;border-radius:12px;padding:12px 14px;border:1px solid var(--border-color)">
@@ -783,7 +861,7 @@ function auditView() {
             ${currentUser?.role === 'admin' ? `<button class="link-btn red" onclick="deleteLog('${l.id}')">Xóa</button>` : ''}
           </div>
         </div>
-      `}).join('') || '<div class="empty-state">Chưa có nhật ký giao dịch.</div>'}
+      `}).join('') || '<div class="empty-state">Không có nhật ký giao dịch trong khoảng thời gian đã chọn.</div>'}
     </div>`;
 }
 
