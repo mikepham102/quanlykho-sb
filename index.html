@@ -195,7 +195,7 @@
     /* CSS cho danh sách Lưu tạm */
     .temp-list-box { background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 10px; margin-top: 14px; }
     .temp-item-row { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-color); margin-top: 6px; font-size: 13px; }
-  </style>
+  \n.ordering-sheet{padding-bottom:6px}.ordering-tabs{display:flex;gap:8px;overflow-x:auto;margin:8px 0 12px}.ordering-list{max-height:55vh;overflow-y:auto;border:1px solid var(--border-color);border-radius:12px;background:#fff}.ordering-row{display:flex;align-items:center;gap:10px;padding:12px;border-bottom:1px solid #eee;background:#fff;cursor:grab;touch-action:none}.ordering-row:last-child{border-bottom:0}.ordering-row.dragging{opacity:.45}.drag-handle{font-size:20px;color:var(--text-muted);width:24px;text-align:center}.ordering-number{font-weight:800;color:var(--text-muted);width:22px;text-align:center}.ordering-name{font-weight:700;flex:1}.ordering-name small{display:block;font-size:11px;color:var(--text-muted);font-weight:500;margin-top:2px}\n</style>
 </head>
 <body>
 
@@ -245,6 +245,7 @@ let draftTab = null;
 let editLogId = null;
 let editingItemId = null;
 let tempDraftList = []; // Mảng chứa danh sách thao tác lưu tạm
+let orderingTab = 'raw';
 
 let accounts = [];
 let raw = [];
@@ -272,6 +273,8 @@ async function fetchInitialData() {
     if (accRes.data) accounts = accRes.data;
     if (rawRes.data) raw = rawRes.data;
     if (fgRes.data) fg = fgRes.data;
+    normalizeSortOrders(raw);
+    normalizeSortOrders(fg);
     
     if (logRes.data && logRes.data.length > 0) {
       logs = logRes.data.map(l => ({
@@ -1042,11 +1045,11 @@ async function saveItem() {
     let newItem;
     if (type === 'raw') {
       const group = document.getElementById('itemGroup').value;
-      newItem = { id: 'r_' + Date.now(), name, unit, group, opening, imported: 0, exported: 0 };
+      newItem = { id: 'r_' + Date.now(), name, unit, group, opening, imported: 0, exported: 0, sort_order: (raw.reduce((m,x)=>Math.max(m, Number(x.sort_order)||0),0) || raw.length*10) + 10 };
       raw.push(newItem);
     } else {
       const category = document.getElementById('itemCat').value;
-      newItem = { id: 'f_' + Date.now(), name, unit, category, opening, sales: 0, production: 0, returned: 0, waste: 0 };
+      newItem = { id: 'f_' + Date.now(), name, unit, category, opening, sales: 0, production: 0, returned: 0, waste: 0, sort_order: (fg.reduce((m,x)=>Math.max(m, Number(x.sort_order)||0),0) || fg.length*10) + 10 };
       fg.push(newItem);
     }
     await syncItemToSupabase(type, newItem);
@@ -1627,6 +1630,118 @@ function inventoryView(dateKey=localDateKey()){
   const chip=(key,label)=>`<button class="filter-chip ${inventoryTab===key?'active':''}" onclick="inventoryTab='${key}';openModal(inventoryView('${dateKey}'))">${label}</button>`;
   return `<h2 style="font-size:18px">🧾 Kiểm kê hàng hóa</h2><div class="form-group" style="margin-top:10px"><label>Ngày kiểm kê</label><input id="countDate" type="date" value="${dateKey}" onchange="openModal(inventoryView(this.value))"></div><div class="tool-note">Nhập <b>tồn thực tế</b> sau khi đếm/cân. Hệ thống tính chênh lệch so với tồn lý thuyết đến cuối ngày đã chọn. <b>Điều chỉnh</b> chỉ được Owner/Admin xác nhận và sẽ tạo Nhật Ký riêng.</div><div class="inventory-filter"><input class="search-box" style="margin-bottom:8px" id="inventorySearch" type="search" value="${String(inventorySearch||'').replace(/"/g,'&quot;')}" placeholder="🔎 Tìm tên hàng hóa..." oninput="inventorySearch=this.value;openModal(inventoryView('${dateKey}'))"><div class="filter-scroll" style="margin-bottom:10px">${chip('all','Tất cả')}${chip('raw_hongphat','HỒNG PHÁT')}${chip('raw_tnt','TNT')}${chip('raw_baobì','BAO BÌ')}${chip('raw_other','Khác (Kho Thô)')}${chip('fg_drink','Đồ uống')}${chip('fg_topping','Topping')}${chip('fg_other','Khác (Thành phẩm)')}</div></div><div style="font-size:11px;color:var(--text-muted);margin:0 0 8px">Hiển thị ${filtered.length}/${all.length} mặt hàng</div><div>${rows || '<div class="empty-state">Không tìm thấy hàng hóa phù hợp.</div>'}</div><div class="inventory-actions"><button class="inventory-close" onclick="closeModal()">Đóng</button><button class="inventory-save" onclick="saveInventoryCount()">✓ Xác nhận kiểm kê</button>${isOwnerRole()?'<button type="button" class="inventory-adjust" onclick="window.applyInventoryAdjustments(); return false;">⚖ Xác nhận điều chỉnh tồn theo kiểm kê</button>':''}</div>`;
 }
+// ===== THỨ TỰ HIỂN THỊ MẶT HÀNG =====
+function itemSortValue(x, fallbackIndex=0) {
+  const n = Number(x?.sort_order);
+  return Number.isFinite(n) ? n : 1000000000 + fallbackIndex;
+}
+function sortItemsForDisplay(arr) {
+  return arr.slice().sort((a,b) => itemSortValue(a, arr.indexOf(a)) - itemSortValue(b, arr.indexOf(b)) || String(a.name||'').localeCompare(String(b.name||''), 'vi'));
+}
+function normalizeSortOrders(arr) {
+  sortItemsForDisplay(arr).forEach((x,i) => { x.sort_order = (i + 1) * 10; });
+}
+function openOrdering() {
+  if (!isOwnerRole()) return showInventoryNotice('⚠️ Không có quyền', 'Chỉ tài khoản Admin/Owner mới được sắp xếp mặt hàng.');
+  orderingTab = 'raw';
+  openModal(orderingView());
+  requestAnimationFrame(initOrderingDrag);
+}
+function orderingView() {
+  const arr = orderingTab === 'raw' ? raw : fg;
+  const list = sortItemsForDisplay(arr);
+  return `<div class="ordering-sheet">
+    <h2 style="font-size:18px;margin-bottom:4px">↕️ Sắp xếp thứ tự hiển thị</h2>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Kéo thả các mặt hàng theo đúng thứ tự muốn hiển thị. Vị trí này được lưu Cloud và không thay đổi khi cập nhật tên, tồn kho hay giao dịch.</div>
+    <div class="ordering-tabs">
+      <button type="button" class="filter-chip ${orderingTab==='raw'?'active':''}" onclick="orderingTab='raw';openModal(orderingView());requestAnimationFrame(initOrderingDrag)">Kho Thô</button>
+      <button type="button" class="filter-chip ${orderingTab==='fg'?'active':''}" onclick="orderingTab='fg';openModal(orderingView());requestAnimationFrame(initOrderingDrag)">Thành Phẩm</button>
+    </div>
+    <div id="orderingList" class="ordering-list">
+      ${list.map((x,i)=>`<div class="ordering-row" draggable="true" data-id="${x.id}">
+        <span class="drag-handle">☷</span><span class="ordering-number">${i+1}</span><span class="ordering-name">${x.name}<small>${x.unit} · ${x.group || x.category || 'Khác'}</small></span>
+      </div>`).join('') || '<div class="empty-state">Chưa có mặt hàng.</div>'}
+    </div>
+    <div class="modal-buttons" style="margin-top:14px"><button class="btn-cancel" onclick="closeModal()">Hủy</button><button class="btn-primary" onclick="saveOrdering()">💾 Lưu thứ tự</button></div>
+  </div>`;
+}
+function initOrderingDrag() {
+  const list = document.getElementById('orderingList');
+  if (!list) return;
+  let dragging = null, ghost = null, startY = 0, moved = false;
+  const rows = () => [...list.querySelectorAll('.ordering-row')];
+  const begin = (row, y) => {
+    dragging = row; startY = y; moved = false;
+    row.classList.add('dragging');
+  };
+  const move = (y, clientX) => {
+    if (!dragging) return;
+    if (Math.abs(y - startY) > 6) moved = true;
+    if (!moved) return;
+    const target = document.elementFromPoint(clientX, y)?.closest('.ordering-row');
+    if (!target || target === dragging || !list.contains(target)) return;
+    const rect = target.getBoundingClientRect();
+    if (y < rect.top + rect.height / 2) list.insertBefore(dragging, target);
+    else list.insertBefore(dragging, target.nextSibling);
+    updateOrderingNumbers();
+  };
+  const end = () => {
+    if (!dragging) return;
+    dragging.classList.remove('dragging');
+    dragging = null;
+    updateOrderingNumbers();
+  };
+  rows().forEach(row => {
+    row.addEventListener('touchstart', e => {
+      if (e.touches.length !== 1) return;
+      begin(row, e.touches[0].clientY);
+    }, {passive:true});
+    row.addEventListener('touchmove', e => {
+      if (!dragging) return;
+      const t=e.touches[0];
+      if (moved || Math.abs(t.clientY-startY)>6) { e.preventDefault(); move(t.clientY,t.clientX); }
+    }, {passive:false});
+    row.addEventListener('touchend', end, {passive:true});
+    row.addEventListener('touchcancel', end, {passive:true});
+    row.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      begin(row, e.clientY);
+      const mm = ev => move(ev.clientY, ev.clientX);
+      const mu = () => { document.removeEventListener('mousemove',mm); document.removeEventListener('mouseup',mu); end(); };
+      document.addEventListener('mousemove',mm);
+      document.addEventListener('mouseup',mu);
+    });
+  });
+}
+function updateOrderingNumbers() {
+  document.querySelectorAll('#orderingList .ordering-row').forEach((row,i)=>{
+    const n=row.querySelector('.ordering-number'); if(n) n.textContent=i+1;
+  });
+}
+async function saveOrdering() {
+  if (!isOwnerRole()) return showInventoryNotice('⚠️ Không có quyền', 'Chỉ tài khoản Admin/Owner mới được sắp xếp mặt hàng.');
+  const arr = orderingTab === 'raw' ? raw : fg;
+  const rows = [...document.querySelectorAll('#orderingList .ordering-row')];
+  const old = arr.map(x => ({...x}));
+  const changes = rows.map((row,i) => {
+    const item = arr.find(x => x.id === row.dataset.id);
+    if (!item) return null;
+    const updated = {...item, sort_order:(i+1)*10};
+    return {item, updated};
+  }).filter(Boolean);
+  try {
+    for (const c of changes) await syncItemToSupabase(orderingTab, c.updated);
+    changes.forEach(c => Object.assign(c.item, c.updated));
+    saveLocalState();
+    closeModal();
+    render();
+    showSuccessToast('Đã lưu thứ tự hiển thị');
+  } catch (e) {
+    arr.forEach((x,i)=>Object.assign(x, old[i]));
+    showInventoryNotice('❌ Chưa lưu được', e.message || String(e));
+  }
+}
+
 // VIEWS
 function loginView() {
   return `<div class="login-wrapper"><div class="login-card"><div class="login-brand">🧋</div><h1 style="text-align:center;color:var(--brand-blue);font-size:22px;margin-bottom:4px">Quản Lý Kho SB</h1><div style="text-align:center;color:var(--text-muted);font-size:13px;margin-bottom:20px">Đăng nhập hệ thống kho Cloud</div><div class="form-group"><label>Tên đăng nhập</label><input id="loginUser" placeholder="Nhập username..."></div><div class="form-group"><label>Mật khẩu</label><input id="loginPass" type="password" placeholder="••••••"></div><button class="btn-primary" onclick="login()">ĐĂNG NHẬP</button><div id="loginError" style="color:var(--danger-color);font-size:12px;margin-top:10px;text-align:center;display:none"></div></div></div>`;
@@ -1634,7 +1749,7 @@ function loginView() {
 
 function rawView() {
   const groups = ['Tất cả', 'HỒNG PHÁT', 'TNT', 'BAO BÌ', 'Khác'];
-  const list = raw.filter(x => (rawGroup === 'Tất cả' || x.group === rawGroup) && x.name.toLowerCase().includes(query.toLowerCase()));
+  const list = sortItemsForDisplay(raw.filter(x => (rawGroup === 'Tất cả' || x.group === rawGroup) && x.name.toLowerCase().includes(query.toLowerCase())));
   return `
     <div class="filter-wrapper"><div class="filter-scroll">${groups.map(g => `<button class="filter-chip ${rawGroup === g ? 'active' : ''}" onclick="rawGroup='${g}';render()">${g}</button>`).join('')}</div></div>
     <div class="card-list">${list.map((x) => {
@@ -1657,7 +1772,7 @@ function rawView() {
 
 function fgView() {
   const groups = ['Tất cả', 'Đồ uống', 'Topping', 'Khác'];
-  const list = fg.filter(x => (fgGroup === 'Tất cả' || x.category === fgGroup) && x.name.toLowerCase().includes(query.toLowerCase()));
+  const list = sortItemsForDisplay(fg.filter(x => (fgGroup === 'Tất cả' || x.category === fgGroup) && x.name.toLowerCase().includes(query.toLowerCase())));
   return `
     <div class="filter-wrapper"><div class="filter-scroll">${groups.map(g => `<button class="filter-chip ${fgGroup === g ? 'active' : ''}" onclick="fgGroup='${g}';render()">${g}</button>`).join('')}</div></div>
     <div class="card-list">${list.map((x) => {
@@ -1721,7 +1836,7 @@ function render() {
     <div class="app-container">
       <header>
         <div class="header-top"><div><div class="shop-title">Quản Lý Kho SB</div><div class="user-info">Xin chào, <b>${currentUser.name}</b></div></div><div class="role-badge">${roleLabel(currentUser.role)}</div></div>
-        ${isOwnerRole() ? `<div class="owner-tools"><button class="owner-tool-btn" onclick="openOwnerTool('reconcile')">📊 Đối chiếu Fabi</button><button class="owner-tool-btn" onclick="openOwnerTool('inventory')">🧾 Kiểm kê</button></div>` : ''}
+        ${isOwnerRole() ? `<div class="owner-tools"><button class="owner-tool-btn" onclick="openOwnerTool('reconcile')">📊 Đối chiếu Fabi</button><button class="owner-tool-btn" onclick="openOwnerTool('inventory')">🧾 Kiểm kê</button><button class="owner-tool-btn" onclick="openOrdering()">↕️ Sắp xếp món</button></div>` : ''}
         <div class="header-actions">
           ${currentUser.role === 'admin' ? `
             <button onclick="openAdmin('location')">⚙ GPS Quán</button>
