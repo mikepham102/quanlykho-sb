@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Tiệm Trà AWAN - Quản Lý Kho Cloud</title>
+  <style>
+    :root {
+      --bg-color: #f1f5f9;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --brand-blue: #0097d2;
+      --brand-blue-dark: #007bb0;
+      --brand-yellow: #ffd21c;
+      --danger-color: #ef4444;
+      --border-color: #e2e8f0;
+      --radius-lg: 16px;
+      --radius-md: 10px;
+
+      /* Màu sắc định danh các thẻ kho */
+      --bg-opening: #f1f5f9; --text-opening: #475569;
+      --bg-import: #dcfce7;  --text-import: #15803d;  /* Nhập / Nấu thêm */
+      --bg-export: #e0f2fe;  --text-export: #0369a1;  /* Xuất / Đã bán */
+      --bg-return: #f3e8ff;  --text-return: #6b21a8;  /* Thu hồi */
+      --bg-waste: #ffe4e6;   --text-waste: #be123c;   /* Hủy / Hao hụt */
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background-color: var(--bg-color); color: var(--text-main); padding-bottom: 80px; }
+    .app-container { max-width: 480px; margin: 0 auto; min-height: 100vh; position: relative; }
+
+    /* Header */
+    header { background: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-dark)); color: #fff; padding: 18px 16px 14px; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; box-shadow: 0 4px 15px rgba(0,151,210,0.25); }
+    .header-top { display: flex; justify-content: space-between; align-items: flex-start; }
+    .shop-title { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; }
+    .user-info { font-size: 13px; opacity: 0.92; margin-top: 3px; font-weight: 500; }
+    .role-badge { background: var(--brand-yellow); color: #1e293b; font-weight: 800; font-size: 11px; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .header-actions { display: flex; gap: 8px; margin-top: 14px; overflow-x: auto; padding-bottom: 2px; }
+    .header-actions button { background: rgba(255,255,255,0.22); color: #fff; border: 1px solid rgba(255,255,255,0.3); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; backdrop-filter: blur(4px); }
+    .header-actions button.btn-logout { background: rgba(239, 68, 68, 0.85); border: none; }
+
+    /* Content */
+    main { padding: 14px; }
+    .filter-wrapper { margin-bottom: 12px; }
+    .filter-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+    .filter-scroll::-webkit-scrollbar { display: none; }
+    .filter-chip { background: #fff; border: 1px solid var(--border-color); padding: 7px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; color: var(--text-muted); white-space: nowrap; cursor: pointer; }
+    .filter-chip.active { background: var(--brand-blue); color: #fff; border-color: var(--brand-blue); box-shadow: 0 2px 6px rgba(0,151,210,0.3); }
+
+    .search-box { width: 100%; padding: 12px 16px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 14px; margin-bottom: 14px; background: #fff; outline: none; }
+
+    /* Card UI */
+    .card-list { display: flex; flex-direction: column; gap: 12px; }
+    .inventory-card { background: var(--card-bg); border-radius: var(--radius-lg); border: 1px solid var(--border-color); padding: 14px; text-align: left; width: 100%; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .card-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+    .item-name { font-weight: 800; font-size: 17px; color: var(--text-main); }
+    .item-unit { font-size: 13px; color: var(--text-muted); margin-top: 2px; font-weight: 500; }
+    .stock-qty { font-weight: 800; font-size: 18px; color: var(--brand-blue); }
+
+    /* Lưới các thông số tồn kho */
+    .stock-stats { display: grid; gap: 6px; }
+    .stock-stats.grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .stock-stats.grid-5 { grid-template-columns: repeat(3, 1fr); }
+
+    .stat-box { text-align: center; padding: 6px 4px; border-radius: 8px; }
+    .stat-box label { font-size: 11px; display: block; margin-bottom: 2px; font-weight: 700; text-transform: uppercase; }
+    .stat-box val { font-size: 15px; font-weight: 800; display: block; }
+
+    .stat-box.opening { background: var(--bg-opening); color: var(--text-opening); }
+    .stat-box.import  { background: var(--bg-import);  color: var(--text-import); }
+    .stat-box.export  { background: var(--bg-export);  color: var(--text-export); }
+    .stat-box.return  { background: var(--bg-return);  color: var(--text-return); }
+    .stat-box.waste   { background: var(--bg-waste);   color: var(--text-waste); }
+
+    /* Nav */
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid var(--border-color); box-shadow: 0 -4px 20px rgba(0,0,0,0.06); z-index: 99; }
+    .nav-inner { max-width: 480px; margin: 0 auto; display: flex; justify-space-around: space-around; }
+    .nav-item { background: none; border: none; padding: 10px 0 8px; font-size: 11px; color: var(--text-muted); font-weight: 600; cursor: pointer; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .nav-item .nav-icon { font-size: 20px; }
+    .nav-item.active { color: var(--brand-blue); font-weight: 700; }
+
+    /* Login */
+    .login-wrapper { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-dark)); }
+    .login-card { background: #fff; padding: 28px 24px; border-radius: 20px; width: 100%; max-width: 360px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); }
+    .login-brand { font-size: 48px; text-align: center; margin-bottom: 6px; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 6px; text-transform: uppercase; }
+    .form-group input, .form-group select { width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 10px; font-size: 14px; outline: none; background: #f8fafc; }
+    button.btn-primary { width: 100%; background: var(--brand-blue); color: #fff; border: none; padding: 13px; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; margin-top: 10px; }
+    button.btn-secondary { width: 100%; background: #0f172a; color: #fff; border: none; padding: 12px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; margin-top: 6px; }
+
+    /* Modal Popup */
+    .modal-overlay { 
+      position: fixed; inset: 0; 
+      background: rgba(15, 23, 42, 0.6); 
+      display: flex; align-items: center; justify-content: center; 
+      z-index: 1000; backdrop-filter: blur(4px); 
+      padding: 16px;
+      opacity: 0; visibility: hidden;
+      transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .modal-overlay.show { opacity: 1; visibility: visible; }
+    .bottom-sheet { 
+      background: #fff; width: 100%; max-width: 420px; 
+      border-radius: 24px; padding: 24px; max-height: 85vh; overflow-y: auto; 
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+      transform: scale(0.92) translateY(10px);
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .modal-overlay.show .bottom-sheet { transform: scale(1) translateY(0); }
+
+    .action-tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+    .action-tab { flex: 1; min-width: 45%; padding: 12px; border: 1px solid var(--border-color); border-radius: 10px; background: #fff; font-size: 13px; font-weight: 700; cursor: pointer; text-align: center; color: var(--text-muted); transition: all 0.2s ease; }
+    .action-tab.active { background: var(--brand-blue); color: #fff; border-color: var(--brand-blue); }
+    .modal-buttons { display: flex; gap: 10px; margin-top: 16px; }
+    .modal-buttons button { flex: 1; padding: 12px; border-radius: 10px; font-weight: 700; cursor: pointer; border: none; font-size: 14px; }
+    .modal-buttons .btn-cancel { background: var(--bg-color); color: var(--text-main); }
+    .modal-buttons .btn-save { background: var(--brand-blue); color: #fff; }
+    .empty-state { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 14px; background: #fff; border-radius: var(--radius-lg); border: 1px dashed var(--border-color); }
+    
+    .link-btn { background: none; border: none; font-size: 12px; cursor: pointer; font-weight: 700; }
+    .link-btn.blue { color: var(--brand-blue); }
+    .link-btn.red { color: var(--danger-color); }
+    .notice-box { background: #e0f2fe; color: #0369a1; padding: 12px; border-radius: 10px; font-size: 13px; margin-bottom: 14px; line-height: 1.4; }
+
+    /* CSS cho danh sách Lưu tạm */
+    .temp-list-box { background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 10px; margin-top: 14px; }
+    .temp-item-row { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-color); margin-top: 6px; font-size: 13px; }
+  </style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+// ==========================================
+// 1. THÔNG TIN SUPABASE CLOUD
+// ==========================================
+const SUPABASE_URL = 'https://kyhbgzaudgzwwvxtetsv.supabase.co'; 
+const SUPABASE_KEY = 'sb_publishable_V-ldzvRj-UpMP49uXmBHLg_dOtd2Png';
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ==========================================
+// 2. BIẾN TOÀN CỤC
+// ==========================================
+let currentUser = null;
+let shopLocation = null;
+let page = 'raw';
+let query = '';
+let rawGroup = 'Tất cả';
+let fgGroup = 'Tất cả';
+let draftItem = null;
+let draftTab = null;
+let editLogId = null;
+let editingItemId = null;
+let tempDraftList = []; // Mảng chứa danh sách thao tác lưu tạm
+
+let accounts = [];
+let raw = [];
+let fg = [];
+let logs = [];
+
+// ==========================================
+// 3. TẢI VÀ ĐỒNG BỘ DỮ LIỆU
+// ==========================================
+async function fetchInitialData() {
+  try {
+    const [accRes, rawRes, fgRes, logRes, configRes] = await Promise.all([
+      supabaseClient.from('accounts').select('*'),
+      supabaseClient.from('raw_items').select('*'),
+      supabaseClient.from('fg_items').select('*'),
+      supabaseClient.from('logs').select('*').order('created_at', { ascending: false }),
+      supabaseClient.from('config').select('*').eq('key', 'shop_location').maybeSingle()
+    ]);
+
+    if (accRes.data) accounts = accRes.data;
+    if (rawRes.data) raw = rawRes.data;
+    if (fgRes.data) fg = fgRes.data;
+    
+    if (logRes.data && logRes.data.length > 0) {
+      logs = logRes.data.map(l => ({
+        id: l.id,
+        tab: l.tab,
+        itemId: l.item_id || l.itemId,
+        item: l.item_name || l.item,
+        action: l.action,
+        qty: Number(l.qty || 0),
+        unit: l.unit,
+        before: Number(l.before_qty || l.before || 0),
+        after: Number(l.after_qty || l.after || 0),
+        actionType: l.action_type || l.actionType,
+        user: l.user_name || l.user,
+        username: l.user_username || l.username || '',
+        time: l.created_at ? new Date(l.created_at).toLocaleString('vi-VN') : (l.time || '')
+      }));
+      localStorage.setItem('awan_logs_backup', JSON.stringify(logs));
+    } else {
+      const backup = localStorage.getItem('awan_logs_backup');
+      if (backup) logs = JSON.parse(backup);
+    }
+
+    if (configRes.data && configRes.data.value) shopLocation = configRes.data.value;
+
+    render();
+  } catch (err) {
+    console.error("Lỗi nạp dữ liệu Supabase:", err);
+    const backup = localStorage.getItem('awan_logs_backup');
+    if (backup) logs = JSON.parse(backup);
+    render();
+  }
+}
+
+function roleLabel(role) { return ({ admin: 'Admin Owner', manager: 'Quản Lý', staff: 'Nhân Viên' })[role] || role; }
+function dateTime() { return new Date().toLocaleString('vi-VN'); }
+function fmt(num) { return Number(num || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 }); }
+
+function getStockRaw(item) { return (item.opening || 0) + (item.imported || 0) - (item.exported || 0); }
+function getStockFG(item) { return (item.opening || 0) + (item.production || 0) - (item.sales || 0) + (item.returned || 0) - (item.waste || 0); }
+
+async function syncItemToSupabase(tab, item) {
+  const table = tab === 'raw' ? 'raw_items' : 'fg_items';
+  await supabaseClient.from(table).upsert(item);
+}
+
+function login() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const acc = accounts.find(a => a.active && a.username === u && a.password === p);
+  const err = document.getElementById('loginError');
+
+  if (!acc) {
+    err.textContent = 'Tên đăng nhập hoặc mật khẩu không đúng.';
+    err.style.display = 'block';
+    return;
+  }
+
+  currentUser = acc;
+  render();
+}
+
+function logout() { currentUser = null; page = 'raw'; render(); }
+function setPage(p) { page = p; query = ''; render(); }
+
+function openModal(html) { 
+  document.getElementById('sheet').innerHTML = html; 
+  document.getElementById('modal').classList.add('show'); 
+}
+function closeModal() { 
+  document.getElementById('modal').classList.remove('show'); 
+  draftItem = null; draftTab = null; editLogId = null; editingItemId = null; tempDraftList = [];
+}
+
+function actionLabel(tab, type) {
+  if (tab === 'raw') return type === 'import' ? 'Nhập kho' : 'Xuất kho';
+  return ({ sales: 'Xuất bán', production: 'Nấu thêm', return: 'Thu hồi', waste: 'Hủy món' })[type] || type;
+}
+
+function applyDraftToItem(item, tab, type, n) {
+  if (tab === 'raw') {
+    if (type === 'import') item.imported = (item.imported || 0) + n;
+    else item.exported = (item.exported || 0) + n;
+  } else {
+    if (type === 'sales') item.sales = (item.sales || 0) + n;
+    if (type === 'production') item.production = (item.production || 0) + n;
+    if (type === 'return') item.returned = (item.returned || 0) + n;
+    if (type === 'waste') item.waste = (item.waste || 0) + n;
+  }
+}
+
+function openItemActions(tab, i) {
+  draftTab = tab; draftItem = i; tempDraftList = [];
+  openModal('<div id="draftMount"></div>');
+  renderDraftModal();
+}
+
+function renderDraftModal() {
+  const item = (draftTab === 'raw' ? raw : fg)[draftItem];
+  if (!item) return;
+  const stock = draftTab === 'raw' ? getStockRaw(item) : getStockFG(item);
+  const types = draftTab === 'raw' ?
+    [{ v: 'import', t: '＋ Nhập kho' }, { v: 'export', t: '− Xuất kho' }] :
+    [{ v: 'sales', t: '− Xuất bán' }, { v: 'production', t: '＋ Nấu thêm' }, { v: 'return', t: '↩ Thu hồi' }, { v: 'waste', t: '− Hủy món' }];
+  
+  const selected = document.getElementById('draftType')?.value || (draftTab === 'raw' ? 'import' : 'sales');
+
+  document.getElementById('sheet').innerHTML = `
+    <h2 style="font-size:18px">${item.name}</h2>
+    <div style="font-size:13px;color:var(--text-muted);margin-top:2px">Đơn vị tính: <b>${item.unit}</b></div>
+    <div class="notice-box" style="margin-top:10px">Tồn kho hiện tại: <b style="font-size:16px">${fmt(stock)} ${item.unit}</b></div>
+    
+    <div class="form-group">
+      <label>Chọn thao tác</label>
+      <div class="action-tabs">${types.map(t => `<button type="button" class="action-tab ${t.v === selected ? 'active' : ''}" onclick="selectDraftAction('${t.v}')">${t.t}</button>`).join('')}</div>
+      <input type="hidden" id="draftType" value="${selected}">
+    </div>
+    <div class="form-group">
+      <label>Số lượng</label>
+      <input id="draftAmount" type="number" min="0.001" step="any" placeholder="Nhập số lượng..." autofocus>
+    </div>
+    
+    <button class="btn-secondary" onclick="addTempDraft()">➕ Lưu Tạm Thao Tác Này</button>
+
+    ${tempDraftList.length > 0 ? `
+      <div class="temp-list-box">
+        <div style="font-weight:700; font-size:12px; color:var(--text-muted); text-transform:uppercase">
+          Danh sách sự việc chờ lưu (${tempDraftList.length}):
+        </div>
+        ${tempDraftList.map((t, idx) => `
+          <div class="temp-item-row">
+            <div>
+              <b>${t.actionName}</b>: <span style="color:var(--brand-blue); font-weight:800">${fmt(t.qty)} ${item.unit}</span>
+            </div>
+            <button class="link-btn red" onclick="removeTempDraft(${idx})">Xóa</button>
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
+
+    <div class="modal-buttons">
+      <button class="btn-cancel" onclick="closeModal()">Hủy</button>
+      <button class="btn-save" onclick="confirmAllDrafts()">✅ Xác Nhận Lưu (${tempDraftList.length > 0 ? tempDraftList.length : '1'})</button>
+    </div>
+  `;
+}
+
+function selectDraftAction(type) {
+  document.getElementById('draftType').value = type;
+  renderDraftModal();
+}
+
+function addTempDraft() {
+  const type = document.getElementById('draftType').value;
+  const qty = Number(document.getElementById('draftAmount').value);
+  if (!qty || qty <= 0) return alert('Vui lòng nhập số lượng hợp lệ.');
+
+  const actionName = actionLabel(draftTab, type);
+  tempDraftList.push({ type, qty, actionName });
+  document.getElementById('draftAmount').value = '';
+  renderDraftModal();
+}
+
+function removeTempDraft(index) {
+  tempDraftList.splice(index, 1);
+  renderDraftModal();
+}
+
+async function confirmAllDrafts() {
+  const item = (draftTab === 'raw' ? raw : fg)[draftItem];
+  const inputQty = Number(document.getElementById('draftAmount')?.value || 0);
+
+  // Nếu người dùng có nhập số lượng trực tiếp mà chưa bấm Lưu Tạm -> Tự động đưa vào danh sách
+  if (tempDraftList.length === 0 && inputQty > 0) {
+    const type = document.getElementById('draftType').value;
+    tempDraftList.push({ type, qty: inputQty, actionName: actionLabel(draftTab, type) });
+  }
+
+  if (tempDraftList.length === 0) {
+    return alert('Vui lòng nhập số lượng hoặc bấm "Lưu tạm" ít nhất 1 thao tác.');
+  }
+
+  const logsToInsert = [];
+  const payloadSupabaseList = [];
+
+  for (const draft of tempDraftList) {
+    const before = draftTab === 'raw' ? getStockRaw(item) : getStockFG(item);
+    applyDraftToItem(item, draftTab, draft.type, draft.qty);
+    const after = draftTab === 'raw' ? getStockRaw(item) : getStockFG(item);
+
+    const logId = 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+    const timeNow = dateTime();
+    const userName = `${currentUser.name} (${roleLabel(currentUser.role)})`;
+
+    const newLogObj = {
+      id: logId,
+      tab: draftTab,
+      itemId: item.id,
+      item: item.name,
+      action: draft.actionName,
+      qty: draft.qty,
+      unit: item.unit,
+      before,
+      after,
+      actionType: draft.type,
+      user: userName,
+      username: currentUser.username,
+      time: timeNow
+    };
+
+    logsToInsert.push(newLogObj);
+
+    payloadSupabaseList.push({
+      id: logId,
+      tab: draftTab,
+      item_id: item.id,
+      item_name: item.name,
+      action: draft.actionName,
+      qty: draft.qty,
+      unit: item.unit,
+      before_qty: before,
+      after_qty: after,
+      action_type: draft.type,
+      user_name: userName,
+      user_username: currentUser.username,
+      created_at: new Date().toISOString()
+    });
+  }
+
+  logs = [...logsToInsert, ...logs];
+  localStorage.setItem('awan_logs_backup', JSON.stringify(logs));
+
+  closeModal();
+  render();
+
+  try {
+    await Promise.all([
+      supabaseClient.from('logs').insert(payloadSupabaseList),
+      syncItemToSupabase(draftTab, item)
+    ]);
+  } catch (err) {
+    console.error("Lỗi khi đồng bộ Nhật ký lên Cloud:", err);
+  }
+}
+
+// ADMIN OPERATIONS
+function openAdmin(section) {
+  if (currentUser?.role !== 'admin') return alert('Chỉ tài khoản Admin mới dùng được tính năng này.');
+  let body = '';
+  
+  if (section === 'location') {
+    body = `
+      <h2 style="font-size:18px">⚙ Cài đặt vị trí quán GPS</h2>
+      <div class="notice-box" style="margin-top:10px">Tọa độ quán hiện tại: <b>${shopLocation ? `${shopLocation.lat}, ${shopLocation.lng}` : 'Chưa thiết lập'}</b></div>
+      <div class="form-group"><label>Vĩ độ (Latitude)</label><input id="shopLat" value="${shopLocation?.lat || ''}" placeholder="Ví dụ: 10.762622"></div>
+      <div class="form-group"><label>Kinh độ (Longitude)</label><input id="shopLng" value="${shopLocation?.lng || ''}" placeholder="Ví dụ: 106.660172"></div>
+      <button class="btn-primary" onclick="saveManualLocation()">💾 Lưu Tọa Độ Cloud</button>`;
+  }
+
+  if (section === 'accounts') {
+    body = `
+      <h2 style="font-size:18px">👥 Quản lý tài khoản nhân viên</h2>
+      <div class="form-group" style="margin-top:10px"><label>Họ tên nhân viên</label><input id="accName" placeholder="Nguyễn Văn A"></div>
+      <div class="form-group"><label>Tên đăng nhập</label><input id="accUser" placeholder="nv_sang"></div>
+      <div class="form-group"><label>Mật khẩu</label><input id="accPass" type="password" placeholder="••••••"></div>
+      <div class="form-group"><label>Vai trò</label><select id="accRole"><option value="staff">Nhân Viên</option><option value="manager">Quản Lý</option><option value="admin">Admin Owner</option></select></div>
+      <div class="form-group"><label>Ca làm việc</label><select id="accShift"><option>Ca Sáng</option><option>Ca Trưa</option><option>Ca Tối</option><option>Tất cả</option></select></div>
+      <button class="btn-primary" onclick="addAccount()">＋ Thêm Tài Khoản Mới</button>
+      <div style="margin-top:16px;max-height:200px;overflow-y:auto">${accounts.map(a => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eee">
+          <div><b>${a.name}</b> (${a.username})<br><small style="color:var(--text-muted)">${roleLabel(a.role)} · ${a.shift}</small></div>
+          ${a.id !== currentUser.id ? `<button class="link-btn red" onclick="removeAccount('${a.id}')">Xóa</button>` : '<span style="font-size:11px;color:var(--brand-blue)">Đang dùng</span>'}
+        </div>`).join('')}
+      </div>`;
+  }
+
+  if (section === 'items') {
+    const type = document.getElementById('itemType')?.value || 'raw';
+    const arr = type === 'raw' ? raw : fg;
+    const editItem = editingItemId ? arr.find(x => x.id === editingItemId) : null;
+
+    body = `
+      <h2 style="font-size:18px">🧾 Quản lý danh mục mặt hàng</h2>
+      <div class="form-group" style="margin-top:10px">
+        <label>Chọn danh mục kho</label>
+        <select id="itemType" onchange="editingItemId=null; openAdmin('items')">
+          <option value="raw" ${type === 'raw' ? 'selected' : ''}>Kho Thô (Nguyên liệu, bao bì)</option>
+          <option value="fg" ${type === 'fg' ? 'selected' : ''}>Kho Thành phẩm (Món, topping)</option>
+        </select>
+      </div>
+
+      <div style="background:#f8fafc; padding:12px; border-radius:10px; border:1px solid var(--border-color); margin-bottom:14px;">
+        <div style="font-weight:700; font-size:13px; margin-bottom:8px; color:var(--brand-blue)">
+          ${editItem ? '✏️ ĐANG SỬA MẶT HÀNG' : '➕ THÊM MẶT HÀNG MỚI'}
+        </div>
+        <div class="form-group">
+          <label>Tên mặt hàng</label>
+          <input id="itemName" value="${editItem ? editItem.name : ''}" placeholder="Ví dụ: Trà Đen, Bột Béo...">
+        </div>
+        <div class="form-group">
+          <label>Đơn vị tính (ĐVT)</label>
+          <input id="itemUnit" value="${editItem ? editItem.unit : ''}" placeholder="kg, gói, ly, phần, hộp...">
+        </div>
+        ${type === 'raw' ? `
+          <div class="form-group">
+            <label>Nhóm phân loại</label>
+            <select id="itemGroup">
+              <option ${editItem?.group === 'HỒNG PHÁT' ? 'selected' : ''}>HỒNG PHÁT</option>
+              <option ${editItem?.group === 'TNT' ? 'selected' : ''}>TNT</option>
+              <option ${editItem?.group === 'BAO BÌ' ? 'selected' : ''}>BAO BÌ</option>
+              <option ${editItem?.group === 'Khác' ? 'selected' : ''}>Khác</option>
+            </select>
+          </div>
+        ` : `
+          <div class="form-group">
+            <label>Nhóm phân loại</label>
+            <select id="itemCat">
+              <option ${editItem?.category === 'Đồ uống' ? 'selected' : ''}>Đồ uống</option>
+              <option ${editItem?.category === 'Topping' ? 'selected' : ''}>Topping</option>
+              <option ${editItem?.category === 'Khác' ? 'selected' : ''}>Khác</option>
+            </select>
+          </div>
+        `}
+        <div class="form-group">
+          <label>Tồn kho ban đầu</label>
+          <input id="itemOpening" type="number" value="${editItem ? editItem.opening : 0}">
+        </div>
+
+        <div style="display:flex; gap:8px">
+          <button class="btn-primary" style="margin-top:0" onclick="saveItem()">
+            ${editItem ? '💾 Cập Nhật Mặt Hàng' : '＋ Thêm Mặt Hàng Mới'}
+          </button>
+          ${editItem ? `<button class="btn-cancel" style="padding:10px; border-radius:10px; font-weight:700" onclick="cancelEditItem()">Hủy sửa</button>` : ''}
+        </div>
+      </div>
+
+      <div style="margin-top:10px;max-height:200px;overflow-y:auto">
+        ${arr.map(x => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eee">
+            <div>
+              <b>${x.name}</b> (${x.unit})
+              <br><small style="color:var(--text-muted)">Nhóm: ${x.group || x.category || 'Khác'} | Tồn đầu: ${x.opening}</small>
+            </div>
+            <div style="display:flex; gap:10px">
+              <button class="link-btn blue" onclick="startEditItem('${x.id}')">Sửa</button>
+              <button class="link-btn red" onclick="deleteItem('${type}','${x.id}')">Xóa</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>`;
+  }
+
+  openModal(body + `<div class="modal-buttons"><button class="btn-cancel" onclick="editingItemId=null; closeModal()">Đóng</button></div>`);
+}
+
+function startEditItem(id) { editingItemId = id; openAdmin('items'); }
+function cancelEditItem() { editingItemId = null; openAdmin('items'); }
+
+async function saveManualLocation() {
+  const lat = Number(document.getElementById('shopLat').value);
+  const lng = Number(document.getElementById('shopLng').value);
+  if (!lat || !lng) return alert('Vui lòng nhập đúng số tọa độ GPS.');
+
+  shopLocation = { lat, lng, radius: 100 };
+  await supabaseClient.from('config').upsert({ key: 'shop_location', value: shopLocation });
+  closeModal();
+  alert('Đã cập nhật tọa độ GPS quán thành công!');
+}
+
+async function addAccount() {
+  const name = document.getElementById('accName').value.trim();
+  const username = document.getElementById('accUser').value.trim();
+  const password = document.getElementById('accPass').value;
+  const role = document.getElementById('accRole').value;
+  const shift = document.getElementById('accShift').value;
+
+  if (!name || !username || !password) return alert('Vui lòng nhập đầy đủ thông tin.');
+  if (accounts.some(a => a.username.toLowerCase() === username.toLowerCase())) return alert('Tên đăng nhập này đã được dùng.');
+
+  const newAcc = { id: 'a_' + Date.now(), name, username, password, role, shift, active: true };
+  accounts.push(newAcc);
+  await supabaseClient.from('accounts').insert([newAcc]);
+  openAdmin('accounts');
+}
+
+async function removeAccount(id) {
+  if (id === currentUser.id) return alert('Không thể xóa tài khoản của chính bạn.');
+  if (!confirm('Bạn có chắc muốn xóa tài khoản này?')) return;
+  accounts = accounts.filter(a => a.id !== id);
+  await supabaseClient.from('accounts').delete().eq('id', id);
+  openAdmin('accounts');
+}
+
+async function saveItem() {
+  const type = document.getElementById('itemType').value;
+  const name = document.getElementById('itemName').value.trim();
+  const unit = document.getElementById('itemUnit').value.trim();
+  const opening = Number(document.getElementById('itemOpening')?.value || 0);
+
+  if (!name || !unit) return alert('Vui lòng nhập Tên mặt hàng và Đơn vị tính.');
+  const arr = type === 'raw' ? raw : fg;
+
+  if (editingItemId) {
+    const item = arr.find(x => x.id === editingItemId);
+    if (item) {
+      item.name = name;
+      item.unit = unit;
+      item.opening = opening;
+      if (type === 'raw') {
+        item.group = document.getElementById('itemGroup').value;
+      } else {
+        item.category = document.getElementById('itemCat').value;
+      }
+      await syncItemToSupabase(type, item);
+    }
+    editingItemId = null;
+  } else {
+    if (arr.some(x => x.name.trim().toLowerCase() === name.toLowerCase())) {
+      return alert('Mặt hàng này đã có trong danh mục.');
+    }
+
+    let newItem;
+    if (type === 'raw') {
+      const group = document.getElementById('itemGroup').value;
+      newItem = { id: 'r_' + Date.now(), name, unit, group, opening, imported: 0, exported: 0 };
+      raw.push(newItem);
+    } else {
+      const category = document.getElementById('itemCat').value;
+      newItem = { id: 'f_' + Date.now(), name, unit, category, opening, sales: 0, production: 0, returned: 0, waste: 0 };
+      fg.push(newItem);
+    }
+    await syncItemToSupabase(type, newItem);
+  }
+
+  openAdmin('items');
+}
+
+async function deleteItem(type, id) {
+  const arr = type === 'raw' ? raw : fg;
+  const x = arr.find(z => z.id === id);
+  if (!x) return;
+  if (!confirm(`Xóa hẳn mặt hàng “${x.name}” khỏi danh mục?`)) return;
+
+  if (type === 'raw') raw = raw.filter(z => z.id !== id);
+  else fg = fg.filter(z => z.id !== id);
+
+  const table = type === 'raw' ? 'raw_items' : 'fg_items';
+  await supabaseClient.from(table).delete().eq('id', id);
+  openAdmin('items');
+}
+
+// SỬA / XÓA NHẬT KÝ THEO PHÂN QUYỀN
+function canEditLog(l) {
+  if (!currentUser) return false;
+  if (currentUser.role === 'admin' || currentUser.role === 'manager') return true;
+  if (l.username) return l.username === currentUser.username;
+  return l.user && l.user.startsWith(currentUser.name);
+}
+
+function editLog(id) {
+  const l = logs.find(x => x.id === id);
+  if (!l) return;
+  if (!canEditLog(l)) return alert('Bạn không có quyền sửa nhật ký do người khác tạo.');
+
+  editLogId = id;
+  openModal(`
+    <h2 style="font-size:18px">✏ Sửa nhật ký giao dịch</h2>
+    <div class="notice-box" style="margin-top:10px">${l.action} - <b>${l.item}</b><br>Tạo bởi: <b>${l.user}</b><br>Số lượng hiện tại: <b style="font-size:16px">${fmt(l.qty)} ${l.unit}</b></div>
+    <div class="form-group"><label>Số lượng mới</label><input id="editAmount" type="number" min="0.001" step="any" value="${l.qty}"></div>
+    <div class="modal-buttons"><button class="btn-cancel" onclick="closeModal()">Hủy</button><button class="btn-save" onclick="saveLogEdit()">Lưu Điều Chỉnh</button></div>
+  `);
+}
+
+async function saveLogEdit() {
+  const l = logs.find(x => x.id === editLogId);
+  const n = Number(document.getElementById('editAmount').value);
+  if (!l || !(n > 0)) return alert('Số lượng mới không hợp lệ.');
+  if (!canEditLog(l)) return alert('Bạn không có quyền sửa nhật ký này.');
+  
+  const arr = l.tab === 'raw' ? raw : fg;
+  const x = arr.find(z => z.id === l.itemId);
+  if (!x) return alert('Không tìm thấy mặt hàng trong hệ thống.');
+
+  const type = l.actionType || 'import';
+
+  if (l.tab === 'raw') {
+    if (type === 'import') x.imported -= l.qty; else x.exported -= l.qty;
+    if (type === 'import') x.imported += n; else x.exported += n;
+  } else {
+    if (type === 'sales') x.sales -= l.qty;
+    if (type === 'production') x.production -= l.qty;
+    if (type === 'return') x.returned -= l.qty;
+    if (type === 'waste') x.waste -= l.qty;
+
+    if (type === 'sales') x.sales += n;
+    if (type === 'production') x.production += n;
+    if (type === 'return') x.returned += n;
+    if (type === 'waste') x.waste += n;
+  }
+
+  l.qty = n;
+  l.after = l.tab === 'raw' ? getStockRaw(x) : getStockFG(x);
+  localStorage.setItem('awan_logs_backup', JSON.stringify(logs));
+
+  closeModal();
+  render();
+
+  await Promise.all([
+    supabaseClient.from('logs').upsert({ id: l.id, qty: n, after_qty: l.after }),
+    syncItemToSupabase(l.tab, x)
+  ]);
+}
+
+async function deleteLog(id) {
+  if (currentUser?.role !== 'admin') return alert('Chỉ Admin mới có quyền xóa nhật ký.');
+  const l = logs.find(x => x.id === id); if (!l) return;
+  const x = (l.tab === 'raw' ? raw : fg).find(z => z.id === l.itemId); if (!x) return;
+  if (!confirm('Xóa nhật ký này? Số lượng tồn kho sẽ tự động hoàn tác lại.')) return;
+
+  const type = l.actionType;
+  if (l.tab === 'raw') {
+    if (type === 'import') x.imported -= l.qty; else x.exported -= l.qty;
+  } else {
+    if (type === 'sales') x.sales -= l.qty;
+    if (type === 'production') x.production -= l.qty;
+    if (type === 'return') x.returned -= l.qty;
+    if (type === 'waste') x.waste -= l.qty;
+  }
+
+  logs = logs.filter(z => z.id !== id);
+  localStorage.setItem('awan_logs_backup', JSON.stringify(logs));
+  render();
+
+  await Promise.all([
+    supabaseClient.from('logs').delete().eq('id', id),
+    syncItemToSupabase(l.tab, x)
+  ]);
+}
+
+// VIEWS
+function loginView() {
+  return `<div class="login-wrapper"><div class="login-card"><div class="login-brand">🧋</div><h1 style="text-align:center;color:var(--brand-blue);font-size:22px;margin-bottom:4px">AWAN TEA</h1><div style="text-align:center;color:var(--text-muted);font-size:13px;margin-bottom:20px">Đăng nhập hệ thống kho Cloud</div><div class="form-group"><label>Tên đăng nhập</label><input id="loginUser" placeholder="Nhập username..."></div><div class="form-group"><label>Mật khẩu</label><input id="loginPass" type="password" placeholder="••••••"></div><button class="btn-primary" onclick="login()">ĐĂNG NHẬP</button><div id="loginError" style="color:var(--danger-color);font-size:12px;margin-top:10px;text-align:center;display:none"></div></div></div>`;
+}
+
+function rawView() {
+  const groups = ['Tất cả', 'HỒNG PHÁT', 'TNT', 'BAO BÌ', 'Khác'];
+  const list = raw.filter(x => (rawGroup === 'Tất cả' || x.group === rawGroup) && x.name.toLowerCase().includes(query.toLowerCase()));
+  return `
+    <div class="filter-wrapper"><div class="filter-scroll">${groups.map(g => `<button class="filter-chip ${rawGroup === g ? 'active' : ''}" onclick="rawGroup='${g}';render()">${g}</button>`).join('')}</div></div>
+    <input class="search-box" placeholder="🔍 Tìm kiếm nguyên liệu, bao bì..." value="${query}" oninput="query=this.value;render()">
+    <div class="card-list">${list.map((x, i) => { const c = getStockRaw(x); return `
+      <div class="inventory-card" onclick="openItemActions('raw',${raw.indexOf(x)})">
+        <div class="card-head">
+          <div><div class="item-name">${x.name}</div><div class="item-unit">ĐVT: ${x.unit}</div></div>
+          <div style="text-align:right"><span style="font-size:11px;color:var(--text-muted);display:block">Tồn Cuối</span><span class="stock-qty">${fmt(c)}</span></div>
+        </div>
+        <div class="stock-stats grid-3">
+          <div class="stat-box opening"><label>Tồn đầu</label><val>${fmt(x.opening)}</val></div>
+          <div class="stat-box import"><label>Nhập</label><val>${fmt(x.imported)}</val></div>
+          <div class="stat-box export"><label>Xuất</label><val>${fmt(x.exported)}</val></div>
+        </div>
+      </div>`; }).join('') || '<div class="empty-state">Chưa có dữ liệu nguyên liệu.</div>'}
+    </div>`;
+}
+
+function fgView() {
+  const groups = ['Tất cả', 'Đồ uống', 'Topping', 'Khác'];
+  const list = fg.filter(x => (fgGroup === 'Tất cả' || x.category === fgGroup) && x.name.toLowerCase().includes(query.toLowerCase()));
+  return `
+    <div class="filter-wrapper"><div class="filter-scroll">${groups.map(g => `<button class="filter-chip ${fgGroup === g ? 'active' : ''}" onclick="fgGroup='${g}';render()">${g}</button>`).join('')}</div></div>
+    <input class="search-box" placeholder="🔍 Tìm kiếm món, topping..." value="${query}" oninput="query=this.value;render()">
+    <div class="card-list">${list.map((x, i) => { const c = getStockFG(x); return `
+      <div class="inventory-card" onclick="openItemActions('fg',${fg.indexOf(x)})">
+        <div class="card-head">
+          <div><div class="item-name">${x.name}</div><div class="item-unit">ĐVT: ${x.unit}</div></div>
+          <div style="text-align:right"><span style="font-size:11px;color:var(--text-muted);display:block">Tồn Cuối</span><span class="stock-qty">${fmt(c)}</span></div>
+        </div>
+        <div class="stock-stats grid-5">
+          <div class="stat-box opening"><label>Tồn đầu</label><val>${fmt(x.opening)}</val></div>
+          <div class="stat-box export"><label>Đã bán</label><val>${fmt(x.sales)}</val></div>
+          <div class="stat-box import"><label>Nấu thêm</label><val>${fmt(x.production)}</val></div>
+          <div class="stat-box return"><label>Thu hồi</label><val>${fmt(x.returned)}</val></div>
+          <div class="stat-box waste"><label>Hủy</label><val>${fmt(x.waste)}</val></div>
+        </div>
+      </div>`; }).join('') || '<div class="empty-state">Chưa có dữ liệu thành phẩm.</div>'}
+    </div>`;
+}
+
+function auditView() {
+  return `
+    <div class="card-list">
+      <div style="padding:14px;font-weight:700;background:#fff;border-radius:12px;border:1px solid var(--border-color);font-size:15px">📋 Lịch sử giao dịch Cloud</div>
+      ${logs.map(l => {
+        const allowEdit = canEditLog(l);
+        return `
+        <div style="background:#fff;border-radius:12px;padding:12px 14px;border:1px solid var(--border-color)">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px"><b>${l.user}</b> · ${l.time}</div>
+          <div style="font-size:14px;color:var(--text-main);margin-bottom:6px">${l.action}: <b style="font-size:15px">${fmt(l.qty)} ${l.unit}</b> (${l.item})</div>
+          <div style="display:flex;gap:12px">
+            ${allowEdit ? `<button class="link-btn blue" onclick="editLog('${l.id}')">Sửa</button>` : ''}
+            ${currentUser?.role === 'admin' ? `<button class="link-btn red" onclick="deleteLog('${l.id}')">Xóa</button>` : ''}
+          </div>
+        </div>
+      `}).join('') || '<div class="empty-state">Chưa có nhật ký giao dịch.</div>'}
+    </div>`;
+}
+
+function render() {
+  document.getElementById('root').innerHTML = !currentUser ? loginView() : `
+    <div class="app-container">
+      <header>
+        <div class="header-top"><div><div class="shop-title">Tiệm Trà AWAN</div><div class="user-info">Xin chào, <b>${currentUser.name}</b></div></div><div class="role-badge">${roleLabel(currentUser.role)}</div></div>
+        <div class="header-actions">
+          ${currentUser.role === 'admin' ? `
+            <button onclick="openAdmin('location')">⚙ GPS Quán</button>
+            <button onclick="openAdmin('accounts')">👥 Nhân Viên</button>
+            <button onclick="openAdmin('items')">🧾 Mặt Hàng</button>
+          ` : ''}
+          <button class="btn-logout" onclick="logout()">Thoát</button>
+        </div>
+      </header>
+      <main>${page === 'raw' ? rawView() : page === 'finished' ? fgView() : auditView()}</main>
+      <nav class="bottom-nav"><div class="nav-inner"><button class="nav-item ${page === 'raw' ? 'active' : ''}" onclick="setPage('raw')"><span class="nav-icon">📦</span>Kho Thô</button><button class="nav-item ${page === 'finished' ? 'active' : ''}" onclick="setPage('finished')"><span class="nav-icon">🥤</span>Thành Phẩm</button><button class="nav-item ${page === 'audit' ? 'active' : ''}" onclick="setPage('audit')"><span class="nav-icon">📄</span>Nhật Ký</button></div></nav>
+    </div>
+    <div class="modal-overlay" id="modal" onclick="if(event.target===this) closeModal()"><div class="bottom-sheet" id="sheet"></div></div>`;
+}
+
+// Khởi chạy ứng dụng
+fetchInitialData();
+</script>
+</body>
+</html>
