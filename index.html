@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Tiệm Trà AWAN - Quản Lý Kho Cloud</title>
+  <title>Quản Lý Kho SB</title>
   <style>
     :root {
       --bg-color: #f1f5f9;
@@ -18,7 +18,7 @@
       --radius-lg: 16px;
       --radius-md: 10px;
 
-      --bg-opening: #f1f5f9; --text-opening: #475569;
+      --bg-opening: #fff2d2; --text-opening: #475569;
       --bg-import: #dcfce7;  --text-import: #15803d;  
       --bg-export: #e0f2fe;  --text-export: #0369a1;  
       --bg-return: #f3e8ff;  --text-return: #6b21a8;  
@@ -82,7 +82,7 @@
     .nav-inner { max-width: 480px; margin: 0 auto; display: flex; justify-content: space-around; }
     .nav-item { background: none; border: none; padding: 10px 0 8px; font-size: 11px; color: var(--text-muted); font-weight: 600; cursor: pointer; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
     .nav-item .nav-icon { font-size: 20px; }
-    .nav-item.active { color: var(--brand-blue); font-weight: 700; }
+    .nav-item.active { color: var(--brand-blue); font-weight: 700; background-color: #ffffb6; }
 
     /* Login */
     .login-wrapper { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-dark)); }
@@ -147,8 +147,10 @@ const SUPABASE_KEY = 'sb_publishable_V-ldzvRj-UpMP49uXmBHLg_dOtd2Png';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ==========================================
-// 2. BIẾN TOÀN CỤC & BỘ LỌC NGÀY
+// 2. BIẾN TOÀN CỤC & THÔNG SỐ ĐĂNG NHẬP
 // ==========================================
+const SESSION_TIMEOUT = 30 * 60 * 1000; // Thời gian hết hạn nếu không thao tác: 30 phút
+
 let currentUser = null;
 let shopLocation = null;
 let page = 'raw';
@@ -161,9 +163,8 @@ let editLogId = null;
 let editingItemId = null;
 let tempDraftList = []; 
 
-// Yêu cầu: Mặc định luôn là ngày hiện tại (Hôm nay)
+// Mặc định luôn là ngày hiện tại (Hôm nay)
 const todayStr = new Date().toISOString().split('T')[0];
-
 let startDate = todayStr;
 let endDate = todayStr;
 
@@ -173,7 +174,47 @@ let fg = [];
 let logs = [];
 
 // ==========================================
-// 3. TẢI VÀ ĐỒNG BỘ DỮ LIỆU
+// 3. XỬ LÝ PHIÊN ĐĂNG NHẬP (SESSION)
+// ==========================================
+// Cập nhật lại thời điểm cuối cùng user chạm vào màn hình (nếu đang đăng nhập)
+function trackActivity() {
+  if (currentUser) {
+    const lastActivity = parseInt(sessionStorage.getItem('awan_last_activity') || '0');
+    // Nếu vượt quá 30 phút -> Hết phiên -> Đăng xuất
+    if (Date.now() - lastActivity > SESSION_TIMEOUT) {
+      logout(true); // Đăng xuất có thông báo
+    } else {
+      // Còn trong phiên -> Gia hạn thêm 30 phút từ thời điểm click/chạm hiện tại
+      sessionStorage.setItem('awan_last_activity', Date.now());
+    }
+  }
+}
+
+// Bắt sự kiện người dùng tương tác để gia hạn phiên
+document.addEventListener('click', trackActivity);
+document.addEventListener('touchstart', trackActivity);
+document.addEventListener('input', trackActivity);
+
+// Kiểm tra phiên đăng nhập ngay khi mở ứng dụng (hoặc switch lại app Safari)
+function initSession() {
+  const savedUser = sessionStorage.getItem('awan_user');
+  const lastActivity = sessionStorage.getItem('awan_last_activity');
+  
+  if (savedUser && lastActivity) {
+    // Kiểm tra xem lúc đóng app đến lúc mở lại có vượt 30p chưa
+    if (Date.now() - parseInt(lastActivity) <= SESSION_TIMEOUT) {
+      currentUser = JSON.parse(savedUser);
+      sessionStorage.setItem('awan_last_activity', Date.now());
+    } else {
+      // Đã quá 30p -> Dọn dẹp session
+      sessionStorage.removeItem('awan_user');
+      sessionStorage.removeItem('awan_last_activity');
+    }
+  }
+}
+
+// ==========================================
+// 4. TẢI VÀ ĐỒNG BỘ DỮ LIỆU
 // ==========================================
 async function fetchInitialData() {
   try {
@@ -227,43 +268,30 @@ function roleLabel(role) { return ({ admin: 'Admin Owner', manager: 'Quản Lý'
 function dateTime() { return new Date().toLocaleString('vi-VN'); }
 function fmt(num) { return Number(num || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 }); }
 
-// Lọc nhật ký theo ngày được chọn
 function getFilteredLogs() {
   const start = new Date(startDate + 'T00:00:00');
   const end = new Date(endDate + 'T23:59:59');
-
   return logs.filter(l => {
     const logDate = new Date(l.createdAt || Date.now());
     return logDate >= start && logDate <= end;
   });
 }
 
-// Yêu cầu: Tính tổng hợp số liệu nhưng vẫn trả về tồn gốc hiện tại để giữ độ tổng quan
 function getRawStatsByDate(item) {
   const fLogs = getFilteredLogs().filter(l => l.tab === 'raw' && l.itemId === item.id);
-  
-  // Tổng hợp số liệu theo THỜI GIAN ĐÃ CHỌN
   const imported = fLogs.filter(l => l.actionType === 'import').reduce((sum, l) => sum + l.qty, 0);
   const exported = fLogs.filter(l => l.actionType === 'export').reduce((sum, l) => sum + l.qty, 0);
-  
-  // Tồn kho cuối thực tế (của toàn bộ dữ liệu lịch sử)
   const stock = (item.opening || 0) + (item.imported || 0) - (item.exported || 0);
-
   return { opening: item.opening || 0, imported, exported, stock };
 }
 
 function getFGStatsByDate(item) {
   const fLogs = getFilteredLogs().filter(l => l.tab === 'finished' && l.itemId === item.id);
-  
-  // Tổng hợp số liệu theo THỜI GIAN ĐÃ CHỌN
   const sales = fLogs.filter(l => l.actionType === 'sales').reduce((sum, l) => sum + l.qty, 0);
   const production = fLogs.filter(l => l.actionType === 'production').reduce((sum, l) => sum + l.qty, 0);
   const returned = fLogs.filter(l => l.actionType === 'return').reduce((sum, l) => sum + l.qty, 0);
   const waste = fLogs.filter(l => l.actionType === 'waste').reduce((sum, l) => sum + l.qty, 0);
-
-  // Tồn kho cuối thực tế (của toàn bộ dữ liệu lịch sử)
   const stock = (item.opening || 0) + (item.production || 0) - (item.sales || 0) + (item.returned || 0) - (item.waste || 0);
-
   return { opening: item.opening || 0, sales, production, returned, waste, stock };
 }
 
@@ -272,6 +300,7 @@ async function syncItemToSupabase(tab, item) {
   await supabaseClient.from(table).upsert(item);
 }
 
+// Xử lý logic Đăng Nhập (Có lưu Session)
 function login() {
   const u = document.getElementById('loginUser').value.trim();
   const p = document.getElementById('loginPass').value;
@@ -285,10 +314,30 @@ function login() {
   }
 
   currentUser = acc;
+  
+  // Lưu phiên đăng nhập
+  sessionStorage.setItem('awan_user', JSON.stringify(acc));
+  sessionStorage.setItem('awan_last_activity', Date.now());
+  
   render();
 }
 
-function logout() { currentUser = null; page = 'raw'; render(); }
+// Xử lý logic Đăng Xuất
+function logout(isTimeout = false) { 
+  currentUser = null; 
+  page = 'raw'; 
+  
+  // Xóa toàn bộ phiên
+  sessionStorage.removeItem('awan_user');
+  sessionStorage.removeItem('awan_last_activity');
+  
+  render();
+  
+  if (isTimeout) {
+    setTimeout(() => alert('Đã tự động đăng xuất do bạn không thao tác trong thời gian dài (trên 30 phút).'), 100);
+  }
+}
+
 function setPage(p) { page = p; query = ''; render(); }
 
 function openModal(html) { 
@@ -787,7 +836,6 @@ function loginView() {
   return `<div class="login-wrapper"><div class="login-card"><div class="login-brand">🧋</div><h1 style="text-align:center;color:var(--brand-blue);font-size:22px;margin-bottom:4px">AWAN TEA</h1><div style="text-align:center;color:var(--text-muted);font-size:13px;margin-bottom:20px">Đăng nhập hệ thống kho Cloud</div><div class="form-group"><label>Tên đăng nhập</label><input id="loginUser" placeholder="Nhập username..."></div><div class="form-group"><label>Mật khẩu</label><input id="loginPass" type="password" placeholder="••••••"></div><button class="btn-primary" onclick="login()">ĐĂNG NHẬP</button><div id="loginError" style="color:var(--danger-color);font-size:12px;margin-top:10px;text-align:center;display:none"></div></div></div>`;
 }
 
-// Yêu cầu: Vẫn render danh sách toàn bộ mặt hàng (list) dù ngày đó mặt hàng không có phát sinh giao dịch
 function rawView() {
   const groups = ['Tất cả', 'HỒNG PHÁT', 'TNT', 'BAO BÌ', 'Khác'];
   const list = raw.filter(x => (rawGroup === 'Tất cả' || x.group === rawGroup) && x.name.toLowerCase().includes(query.toLowerCase()));
@@ -813,7 +861,6 @@ function rawView() {
     </div>`;
 }
 
-// Yêu cầu: Vẫn render danh sách toàn bộ thành phẩm (list) dù ngày đó không có phát sinh giao dịch
 function fgView() {
   const groups = ['Tất cả', 'Đồ uống', 'Topping', 'Khác'];
   const list = fg.filter(x => (fgGroup === 'Tất cả' || x.category === fgGroup) && x.name.toLowerCase().includes(query.toLowerCase()));
@@ -869,7 +916,7 @@ function render() {
   document.getElementById('root').innerHTML = !currentUser ? loginView() : `
     <div class="app-container">
       <header>
-        <div class="header-top"><div><div class="shop-title">Tiệm Trà AWAN</div><div class="user-info">Xin chào, <b>${currentUser.name}</b></div></div><div class="role-badge">${roleLabel(currentUser.role)}</div></div>
+        <div class="header-top"><div><div class="shop-title">App Quản Lý Kho</div><div class="user-info">Xin chào, <b>${currentUser.name}</b></div></div><div class="role-badge">${roleLabel(currentUser.role)}</div></div>
         <div class="header-actions">
           ${currentUser.role === 'admin' ? `
             <button onclick="openAdmin('location')">⚙ GPS Quán</button>
@@ -885,8 +932,10 @@ function render() {
     <div class="modal-overlay" id="modal" onclick="if(event.target===this) closeModal()"><div class="bottom-sheet" id="sheet"></div></div>`;
 }
 
-// Khởi chạy ứng dụng
+// Khởi chạy ứng dụng với việc kiểm tra Session trước
+initSession();
 fetchInitialData();
+
 </script>
 </body>
 </html>
