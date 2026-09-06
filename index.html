@@ -19,7 +19,7 @@
       --radius-md: 10px;
 
       /* Màu sắc định danh các thẻ kho */
-      --bg-opening: #f1f5f9; --text-opening: #475569;
+      --bg-opening: #fff3bd; --text-opening: #475569;
       --bg-import: #dcfce7;  --text-import: #15803d;  /* Nhập / Nấu thêm */
       --bg-export: #e0f2fe;  --text-export: #0369a1;  /* Xuất / Đã bán */
       --bg-return: #f3e8ff;  --text-return: #6b21a8;  /* Thu hồi */
@@ -78,6 +78,21 @@
     .stat-box.export  { background: var(--bg-export);  color: var(--text-export); }
     .stat-box.return  { background: var(--bg-return);  color: var(--text-return); }
     .stat-box.waste   { background: var(--bg-waste);   color: var(--text-waste); }
+
+    /* Màu nhận diện loại giao dịch trong Nhật Ký — đồng bộ với thẻ Kho */
+    .audit-action { display:inline-block; padding:3px 7px; border-radius:7px; font-weight:800; font-size:13px; line-height:1.2; }
+    .audit-action.import, .audit-action.production { background:var(--bg-import); color:var(--text-import); }
+    .audit-action.export, .audit-action.sales { background:var(--bg-export); color:var(--text-export); }
+    .audit-action.return { background:var(--bg-return); color:var(--text-return); }
+    .audit-action.waste { background:var(--bg-waste); color:var(--text-waste); }
+    .audit-action.adjustment { background:#fef3c7; color:#a16207; }
+    .audit-action.data_repair { background:var(--bg-opening); color:var(--text-opening); }
+
+    /* Nhật ký đã chỉnh sửa: nổi bật toàn bộ dòng + ghi rõ nội dung thay đổi */
+    .audit-row-edited { background:#fff7ed !important; border:1px solid #fdba74 !important; box-shadow:0 2px 8px rgba(234,88,12,.10); }
+    .audit-edited-line { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-top:4px; font-size:12px; color:#9a3412; font-weight:800; }
+    .audit-change { color:#9a3412; }
+    .audit-edited-meta { margin-left:auto; white-space:nowrap; color:#c2410c; }
 
     /* Nav */
     .bottom-nav {
@@ -170,7 +185,7 @@
       max-width: min(360px, calc(100vw - 32px));
       padding: 11px 15px;
       border-radius: 12px;
-      background: rgba(15, 23, 42, .88);
+      background: #dc2626;
       color: #fff;
       font-size: 13px;
       font-weight: 700;
@@ -209,6 +224,19 @@
 .inventory-confirm-actions{display:flex;gap:10px;padding:12px 18px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid #e2e8f0;background:#f8fafc}
 .inventory-confirm-actions button{flex:1;min-height:46px;border:0;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;touch-action:manipulation}
 .inventory-confirm-cancel{background:#e2e8f0;color:#0f172a}.inventory-confirm-ok{background:#0f172a;color:#fff}
+  .date-report-wrap { margin-bottom: 12px; }
+  .date-report-trigger { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; background:#fff; color:var(--text-main); border:1px solid var(--border-color); padding:11px 13px; border-radius:12px; font-weight:800; font-size:14px; cursor:pointer; box-shadow:0 1px 2px rgba(15,23,42,.03); }
+  .date-report-trigger.active { background:#e0f2fe; color:#0369a1; border-color:#bae6fd; }
+  .date-report-panel { margin-top:8px; background:#fff; border:1px solid var(--border-color); border-radius:14px; padding:12px; box-shadow:0 4px 14px rgba(15,23,42,.05); }
+  .date-report-title { font-size:14px; font-weight:800; margin-bottom:9px; }
+  .date-report-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .date-report-grid .form-group { margin-bottom:0; }
+  .date-report-actions { display:grid; grid-template-columns:1.35fr 1fr; gap:8px; margin-top:10px; }
+  .date-report-actions button { min-height:44px; border-radius:10px; border:0; font-weight:800; font-size:13px; cursor:pointer; }
+  .date-report-view { background:var(--brand-blue); color:#fff; }
+  .date-report-current { background:#e2e8f0; color:#0f172a; }
+  .date-report-note { font-size:11px; line-height:1.45; color:var(--text-muted); margin-top:9px; }
+  .date-report-status { margin-top:8px; padding:8px 10px; border-radius:10px; background:#f8fafc; color:#475569; font-size:11px; line-height:1.4; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -232,6 +260,7 @@ let shopLocation = null;
 let page = 'raw';
 let dateFilterStart = '';
 let dateFilterEnd = '';
+let dateFilterOpen = false;
 let query = '';
 let rawGroup = 'Tất cả';
 let fgGroup = 'Tất cả';
@@ -294,6 +323,7 @@ async function fetchInitialData() {
         dateKey: l.datekey || '',
         editedAt: l.editedat || null,
         editedBy: l.editedby || null,
+        editDetail: l.editdetail || '',
         time: l.time || ''
       })).sort((a,b) => (Number(b.timestamp)||0) - (Number(a.timestamp)||0) || String(b.id).localeCompare(String(a.id)));
       localStorage.setItem('awan_logs_backup', JSON.stringify(logs));
@@ -502,43 +532,46 @@ function applyDraftToItem(item, tab, type, n) {
   }
 }
 
+function getLogDateKey(log) {
+  const key = String(log?.dateKey || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(key)) return key;
+  const ts = Number(log?.timestamp);
+  if (Number.isFinite(ts) && ts > 0) return localDateKey(new Date(ts));
+  const raw = log?.time || log?.createdAt || log?.created_at || '';
+  const d = raw ? new Date(raw) : null;
+  return d && !Number.isNaN(d.getTime()) ? localDateKey(d) : '';
+}
+
 function getLogDate(log) {
-  if (log.createdAt) return new Date(log.createdAt);
-  if (log.time) {
-    const d = new Date(log.time);
-    if (!Number.isNaN(d.getTime())) return d;
+  const ts = Number(log?.timestamp);
+  if (Number.isFinite(ts) && ts > 0) return new Date(ts);
+  if (log?.dateKey && /^\d{4}-\d{2}-\d{2}$/.test(String(log.dateKey))) {
+    const time = String(log.time || '').match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    return new Date(`${log.dateKey}T${String(time?.[1] || '00').padStart(2,'0')}:${time?.[2] || '00'}:${time?.[3] || '00'}`);
   }
+  const raw = log?.createdAt || log?.created_at || log?.time;
+  if (raw) { const d = new Date(raw); if (!Number.isNaN(d.getTime())) return d; }
   return null;
 }
 
 function isDateFilterActive() {
-  return !!(dateFilterStart || dateFilterEnd);
+  return !!(dateFilterStart && dateFilterEnd);
 }
 
 function getFilteredLogs() {
   if (!isDateFilterActive()) return logs;
-
-  const start = dateFilterStart ? new Date(dateFilterStart + 'T00:00:00') : null;
-  const end = dateFilterEnd ? new Date(dateFilterEnd + 'T23:59:59.999') : null;
-
   return logs.filter(log => {
-    const d = getLogDate(log);
-    if (!d || Number.isNaN(d.getTime())) return false;
-    if (start && d < start) return false;
-    if (end && d > end) return false;
-    return true;
+    const key = getLogDateKey(log);
+    return !!key && key >= dateFilterStart && key <= dateFilterEnd;
   });
 }
 
 function getLogsBeforeFilter(logsArray, item, tab) {
   if (!isDateFilterActive()) return [];
-  const start = dateFilterStart ? new Date(dateFilterStart + 'T00:00:00') : null;
-  if (!start) return [];
-
   return logsArray.filter(log => {
     if (log.tab !== tab || log.itemId !== item.id) return false;
-    const d = getLogDate(log);
-    return d && !Number.isNaN(d.getTime()) && d < start;
+    const key = getLogDateKey(log);
+    return !!key && key < dateFilterStart;
   });
 }
 
@@ -555,21 +588,22 @@ function getRawStatsByDate(item) {
   const beforeLogs = getLogsBeforeFilter(logs, item, 'raw');
   const periodLogs = getFilteredLogs().filter(l => l.tab === 'raw' && l.itemId === item.id);
 
-  // Tồn đầu kỳ = tồn ban đầu + toàn bộ phát sinh trước ngày bắt đầu.
+  // Báo cáo lịch sử chỉ tái dựng từ tồn gốc + Log. Không đọc/sửa tồn hiện tại.
   let opening = Number(item.opening || 0);
   beforeLogs.forEach(l => {
-    if (l.actionType === 'import') opening += Number(l.qty || 0);
-    if (l.actionType === 'export') opening -= Number(l.qty || 0);
+    const type = normalizeActionType(l);
+    const q = Number(l.qty || 0);
+    if (type === 'import') opening += q;
+    if (type === 'export') opening -= q;
+    if (type === 'adjustment') opening += adjustmentDelta(l);
+    // data_repair chỉ là sửa dữ liệu nền, không phải giao dịch kho.
   });
 
-  const imported = periodLogs
-    .filter(l => l.actionType === 'import')
-    .reduce((s, l) => s + Number(l.qty || 0), 0);
-  const exported = periodLogs
-    .filter(l => l.actionType === 'export')
-    .reduce((s, l) => s + Number(l.qty || 0), 0);
+  const imported = periodLogs.filter(l => normalizeActionType(l) === 'import').reduce((s,l) => s + Number(l.qty || 0), 0);
+  const exported = periodLogs.filter(l => normalizeActionType(l) === 'export').reduce((s,l) => s + Number(l.qty || 0), 0);
+  const adjustment = periodLogs.filter(l => normalizeActionType(l) === 'adjustment').reduce((s,l) => s + adjustmentDelta(l), 0);
 
-  return { opening, imported, exported, stock: opening + imported - exported };
+  return { opening, imported, exported, adjustment, stock: opening + imported - exported + adjustment };
 }
 
 function getFGStatsByDate(item) {
@@ -589,29 +623,39 @@ function getFGStatsByDate(item) {
 
   let opening = Number(item.opening || 0);
   beforeLogs.forEach(l => {
+    const type = normalizeActionType(l);
     const q = Number(l.qty || 0);
-    if (l.actionType === 'production' || l.actionType === 'return') opening += q;
-    if (l.actionType === 'sales' || l.actionType === 'waste') opening -= q;
+    if (type === 'production' || type === 'return') opening += q;
+    if (type === 'sales' || type === 'waste') opening -= q;
+    if (type === 'adjustment') opening += adjustmentDelta(l);
   });
 
-  const sales = periodLogs.filter(l => l.actionType === 'sales').reduce((s, l) => s + Number(l.qty || 0), 0);
-  const production = periodLogs.filter(l => l.actionType === 'production').reduce((s, l) => s + Number(l.qty || 0), 0);
-  const returned = periodLogs.filter(l => l.actionType === 'return').reduce((s, l) => s + Number(l.qty || 0), 0);
-  const waste = periodLogs.filter(l => l.actionType === 'waste').reduce((s, l) => s + Number(l.qty || 0), 0);
+  const sales = periodLogs.filter(l => normalizeActionType(l) === 'sales').reduce((s,l) => s + Number(l.qty || 0), 0);
+  const production = periodLogs.filter(l => normalizeActionType(l) === 'production').reduce((s,l) => s + Number(l.qty || 0), 0);
+  const returned = periodLogs.filter(l => normalizeActionType(l) === 'return').reduce((s,l) => s + Number(l.qty || 0), 0);
+  const waste = periodLogs.filter(l => normalizeActionType(l) === 'waste').reduce((s,l) => s + Number(l.qty || 0), 0);
+  const adjustment = periodLogs.filter(l => normalizeActionType(l) === 'adjustment').reduce((s,l) => s + adjustmentDelta(l), 0);
 
   return {
-    opening,
-    sales,
-    production,
-    returned,
-    waste,
-    stock: opening + production - sales + returned - waste
+    opening, sales, production, returned, waste, adjustment,
+    stock: opening + production - sales + returned - waste + adjustment
   };
 }
 
 function clearDateFilter() {
   dateFilterStart = '';
   dateFilterEnd = '';
+  dateFilterOpen = false;
+  render();
+}
+
+function toggleDateFilter() {
+  if (!dateFilterOpen && !isDateFilterActive()) {
+    const today = localDateKey();
+    dateFilterStart = today;
+    dateFilterEnd = today;
+  }
+  dateFilterOpen = !dateFilterOpen;
   render();
 }
 
@@ -619,43 +663,54 @@ function applyDateFilter() {
   const start = document.getElementById('dateStart')?.value || '';
   const end = document.getElementById('dateEnd')?.value || '';
 
-  if (start && end && start > end) {
-    return alert('Ngày bắt đầu không được lớn hơn ngày kết thúc.');
-  }
+  if (!start || !end) return showInventoryNotice('📅 Chưa đủ ngày', 'Vui lòng chọn cả Từ ngày và Đến ngày để xem báo cáo.');
+  if (start > end) return showInventoryNotice('📅 Ngày không hợp lệ', 'Ngày bắt đầu không được lớn hơn ngày kết thúc.');
 
   dateFilterStart = start;
   dateFilterEnd = end;
+  dateFilterOpen = false;
   render();
 }
 
 function dateFilterView() {
-  const activeText = isDateFilterActive()
-    ? `Đang xem: <b>${dateFilterStart || '...'} → ${dateFilterEnd || '...'}</b>`
-    : 'Đang xem <b>tồn kho hiện tại</b>.';
+  const active = isDateFilterActive();
+  const label = active
+    ? `📅 Đang xem: ${dateFilterStart} → ${dateFilterEnd}`
+    : '📅 Xem lại theo ngày';
 
   return `
-    <div style="background:#fff;border:1px solid var(--border-color);border-radius:12px;padding:12px;margin-bottom:14px">
-      <div style="font-size:13px;font-weight:800;margin-bottom:8px">📅 Xem dữ liệu theo ngày</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div class="form-group" style="margin-bottom:0">
-          <label>Từ ngày</label>
-          <input id="dateStart" type="date" value="${dateFilterStart}">
+    <div class="date-report-wrap">
+      <button type="button" class="date-report-trigger ${active ? 'active' : ''}" onclick="toggleDateFilter()">${label}</button>
+      ${dateFilterOpen ? `
+        <div class="date-report-panel">
+          <div class="date-report-title">📅 Xem lại dữ liệu</div>
+          <div class="date-report-grid">
+            <div class="form-group">
+              <label>Từ ngày</label>
+              <input id="dateStart" type="date" value="${dateFilterStart}">
+            </div>
+            <div class="form-group">
+              <label>Đến ngày</label>
+              <input id="dateEnd" type="date" value="${dateFilterEnd}">
+            </div>
+          </div>
+          <div class="date-report-actions">
+            <button type="button" class="date-report-view" onclick="applyDateFilter()">Xem báo cáo</button>
+            <button type="button" class="date-report-current" onclick="${active ? 'clearDateFilter()' : 'dateFilterOpen=false;render()'}">${active ? '↩ Về hiện tại' : 'Đóng'}</button>
+          </div>
+          <div class="date-report-note">Đây chỉ là chế độ xem báo cáo. Hệ thống lấy các giao dịch trước và trong khoảng ngày đã chọn để cộng/trừ theo đúng Ledger. <b>Không thay đổi tồn kho thực tế và không ghi thêm giao dịch.</b></div>
         </div>
-        <div class="form-group" style="margin-bottom:0">
-          <label>Đến ngày</label>
-          <input id="dateEnd" type="date" value="${dateFilterEnd}">
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn-primary" style="margin-top:0" onclick="applyDateFilter()">Xem theo ngày</button>
-        <button class="btn-cancel" style="flex:1;padding:12px;border:0;border-radius:10px;font-weight:700" onclick="clearDateFilter()">Hiện hiện tại</button>
-      </div>
-      <div style="font-size:12px;color:var(--text-muted);margin-top:9px;line-height:1.4">${activeText}<br>Danh sách mặt hàng <b>luôn hiển thị đầy đủ</b>; bộ lọc chỉ thay đổi các số liệu theo kỳ.</div>
+      ` : ''}
+      ${active && !dateFilterOpen ? `<div class="date-report-status">Chỉ đang xem báo cáo của kỳ đã chọn. Tồn kho thực tế hiện tại không bị thay đổi.</div>` : ''}
     </div>
   `;
 }
 
 function openItemActions(tab, i) {
+  if (isDateFilterActive()) {
+    showInventoryNotice('📅 Đang xem báo cáo', 'Bạn đang ở chế độ xem lại theo ngày. Hãy bấm “Về hiện tại” trước khi nhập, xuất, bán, nấu hoặc điều chỉnh tồn.');
+    return;
+  }
   draftTab = tab; draftItem = i; tempDraftList = [];
   openModal('<div id="draftMount"></div>');
   renderDraftModal();
@@ -1203,6 +1258,10 @@ function canEditLog(l) {
 }
 
 function editLog(id) {
+  if (isDateFilterActive()) {
+    showInventoryNotice('📅 Đang xem báo cáo', 'Bạn đang ở chế độ xem lại theo ngày. Hãy bấm “Về hiện tại” trước khi sửa nhật ký.');
+    return;
+  }
   const l = logs.find(x => x.id === id);
   if (!l) return;
   if (!canEditLog(l)) return alert('Bạn không có quyền sửa nhật ký do người khác tạo.');
@@ -1233,6 +1292,7 @@ async function saveLogEdit() {
   const oldAfter = l.after;
   const oldEditedAt = l.editedAt;
   const oldEditedBy = l.editedBy;
+  const oldEditDetail = l.editDetail || '';
   const originalItem = JSON.parse(JSON.stringify(x));
 
   if (l.tab === 'raw') {
@@ -1254,13 +1314,18 @@ async function saveLogEdit() {
   }
 
   const newAfter = newStock;
-  if (!confirm(`⚠️ XÁC NHẬN SỬA NHẬT KÝ\n\n${l.item}\n${l.action}: ${fmt(oldQty)} → ${fmt(n)} ${l.unit}\nTồn sau sửa: ${fmt(newAfter)} ${l.unit}\n\nBạn có chắc chắn muốn ghi thay đổi này?`)) {
+  const confirmed = await showInventoryConfirm(
+    '⚠️ XÁC NHẬN SỬA NHẬT KÝ',
+    `Bạn có chắc chắn muốn sửa nhật ký “${l.action}” của ${l.item}?\n\nSố lượng: ${fmt(oldQty)} ${l.unit} → ${fmt(n)} ${l.unit}\nTồn sau sửa: ${fmt(newAfter)} ${l.unit}\n\nHệ thống sẽ cập nhật giao dịch và tồn kho Cloud.`
+  );
+  if (!confirmed) {
     Object.assign(x, originalItem);
     return;
   }
 
   const editedAt = dateTime();
   const editedBy = currentUser.name;
+  const editDetail = `Số lượng: ${fmt(oldQty)} ${l.unit} → ${fmt(n)} ${l.unit}`;
 
   try {
     // Ghi item trước; nếu Log lỗi sẽ rollback item để hai bảng luôn khớp.
@@ -1270,7 +1335,7 @@ async function saveLogEdit() {
     if (itemError) throw new Error(`Không thể cập nhật tồn kho Cloud: ${itemError.message || itemError}`);
 
     const { error: logError } = await supabaseClient.from('logs').update({
-      qty: n, after: newAfter, editedat: editedAt, editedby: editedBy
+      qty: n, after: newAfter, editedat: editedAt, editedby: editedBy, editdetail: editDetail
     }).eq('id', l.id);
 
     if (logError) {
@@ -1284,6 +1349,7 @@ async function saveLogEdit() {
     l.after = newAfter;
     l.editedAt = editedAt;
     l.editedBy = editedBy;
+    l.editDetail = editDetail;
     sortLogsNewestFirst();
     localStorage.setItem('awan_logs_backup', JSON.stringify(logs));
     localStorage.setItem(l.tab === 'raw' ? 'awan_raw_backup' : 'awan_fg_backup', JSON.stringify(l.tab === 'raw' ? raw : fg));
@@ -1296,10 +1362,15 @@ async function saveLogEdit() {
     l.after = oldAfter;
     l.editedAt = oldEditedAt;
     l.editedBy = oldEditedBy;
+    l.editDetail = oldEditDetail;
     return alert(`❌ SỬA NHẬT KÝ KHÔNG THÀNH CÔNG\n\n${err.message || err}\n\nDữ liệu trên màn hình đã được giữ nguyên.`);
   }
 }
 async function deleteLog(id) {
+  if (isDateFilterActive()) {
+    showInventoryNotice('📅 Đang xem báo cáo', 'Bạn đang ở chế độ xem lại theo ngày. Hãy bấm “Về hiện tại” trước khi xóa nhật ký.');
+    return;
+  }
   if (!['admin','owner'].includes(String(currentUser?.role || '').toLowerCase())) {
     return alert('Chỉ tài khoản Admin/Owner mới có quyền xóa nhật ký.');
   }
@@ -1371,7 +1442,8 @@ async function deleteLog(id) {
       user: l.user || '',
       time: l.time || '',
       editedat: l.editedAt || null,
-      editedby: l.editedBy || null
+      editedby: l.editedBy || null,
+      editdetail: l.editDetail || null
     });
     Object.assign(x, oldItem);
     const restoreText = restoreError ? `\nKhôi phục nhật ký cũng lỗi: ${restoreError.message}` : '';
@@ -1751,6 +1823,7 @@ function rawView() {
   const groups = ['Tất cả', 'HỒNG PHÁT', 'TNT', 'BAO BÌ', 'Khác'];
   const list = sortItemsForDisplay(raw.filter(x => (rawGroup === 'Tất cả' || x.group === rawGroup) && x.name.toLowerCase().includes(query.toLowerCase())));
   return `
+    ${dateFilterView()}
     <div class="filter-wrapper"><div class="filter-scroll">${groups.map(g => `<button class="filter-chip ${rawGroup === g ? 'active' : ''}" onclick="rawGroup='${g}';render()">${g}</button>`).join('')}</div></div>
     <div class="card-list">${list.map((x) => {
       const s = getRawStatsByDate(x);
@@ -1774,6 +1847,7 @@ function fgView() {
   const groups = ['Tất cả', 'Đồ uống', 'Topping', 'Khác'];
   const list = sortItemsForDisplay(fg.filter(x => (fgGroup === 'Tất cả' || x.category === fgGroup) && x.name.toLowerCase().includes(query.toLowerCase())));
   return `
+    ${dateFilterView()}
     <div class="filter-wrapper"><div class="filter-scroll">${groups.map(g => `<button class="filter-chip ${fgGroup === g ? 'active' : ''}" onclick="fgGroup='${g}';render()">${g}</button>`).join('')}</div></div>
     <div class="card-list">${list.map((x) => {
       const s = getFGStatsByDate(x);
@@ -1795,6 +1869,31 @@ function fgView() {
     </div>`;
 }
 
+
+function auditActionClass(log) {
+  return normalizeActionType(log) || 'data_repair';
+}
+function auditActionLabel(log) {
+  const type = normalizeActionType(log);
+  const labels = {
+    import: 'Nhập kho',
+    export: 'Xuất kho',
+    sales: 'Xuất bán',
+    production: 'Nấu thêm',
+    return: 'Thu hồi',
+    waste: 'Hủy món',
+    adjustment: String(log.action || 'Điều chỉnh tồn'),
+    data_repair: 'Sửa dữ liệu lỗi cũ'
+  };
+  return labels[type] || String(log.action || 'Giao dịch');
+}
+
+function auditEditSummary(log) {
+  if (!log.editedAt) return '';
+  const detail = String(log.editDetail || '').trim();
+  return detail || `Số lượng hiện tại: ${fmt(log.qty)} ${log.unit}`;
+}
+
 function auditView() {
   const filters = [
     ['Tất cả', 'Tất cả'],
@@ -1806,9 +1905,10 @@ function auditView() {
     ['waste', 'Hủy món'],
     ['adjustment', 'Điều chỉnh tồn']
   ];
-  const list = logs.filter(l => auditType === 'Tất cả' || normalizeActionType(l) === auditType);
+  const list = getFilteredLogs().filter(l => auditType === 'Tất cả' || normalizeActionType(l) === auditType);
 
   return `
+    ${dateFilterView()}
     <div class="filter-wrapper">
       <div class="filter-scroll">
         ${filters.map(([value, label]) => `<button class="filter-chip ${auditType === value ? 'active' : ''}" onclick="auditType='${value}';render()">${label}</button>`).join('')}
@@ -1819,10 +1919,11 @@ function auditView() {
       ${list.map(l => {
         const allowEdit = canEditLog(l);
         return `
-        <div style="background:#fff;border-radius:12px;padding:12px 14px;border:1px solid var(--border-color)">
+        <div class="${l.editedAt ? 'audit-row-edited' : ''}" style="background:#fff;border-radius:12px;padding:12px 14px;border:1px solid var(--border-color)">
           <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px"><b>${l.user}</b> · ${l.time}</div>
-          <div style="font-size:14px;color:var(--text-main);margin-bottom:6px">${l.action}: <b style="font-size:15px">${fmt(l.qty)} ${l.unit}</b> (${l.item})</div>
-          <div style="display:flex;gap:12px">
+          <div style="font-size:14px;color:var(--text-main);margin-bottom:6px"><span class="audit-action ${auditActionClass(l)}">${auditActionLabel(l)}</span>: <b style="font-size:15px">${fmt(l.qty)} ${l.unit}</b> (${l.item})</div>
+          ${l.editedAt ? `<div class="audit-edited-line"><span class="audit-change">→ ${auditEditSummary(l)}</span><span class="audit-edited-meta">✎ Đã sửa ${l.editedAt}</span></div>` : ''}
+          <div style="display:flex;gap:12px;margin-top:${l.editedAt ? '7px' : '0'}">
             ${allowEdit ? `<button class="link-btn blue" onclick="editLog('${l.id}')">Sửa</button>` : ''}
             ${isOwnerRole() ? `<button class="link-btn red" onclick="deleteLog('${l.id}')">Xóa</button>` : ''}
           </div>
