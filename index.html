@@ -284,17 +284,19 @@ async function loadSchedules(){
  if(!target)return;
  target.innerHTML='<div class="loading-slot"><div class="notice info">Đang tải lịch…</div></div>';
 
- const {data,error}=await sb.from('work_schedules')
-   .select('id,work_date,start_time,end_time,start_at,end_at,status,note,employee_id,shift_group_id')
-   .eq('store_id',storeId).eq('work_date',selected)
-   .or('employee_id.eq.'+userId+',employee_id.is.null').order('start_time');
+ const [{data:assignedRows,error:assignedError},{data:openRows,error:openError}]=await Promise.all([
+   sb.from('work_schedules').select('id,work_date,start_time,end_time,start_at,end_at,status,note,employee_id,shift_group_id').eq('store_id',storeId).eq('work_date',selected).eq('employee_id',userId).neq('status','cancelled').order('start_time'),
+   sb.from('work_schedules').select('id,work_date,start_time,end_time,start_at,end_at,status,note,employee_id,shift_group_id').eq('store_id',storeId).eq('work_date',selected).eq('status','open').is('employee_id',null).order('start_time')
+ ]);
  if(session!==s||profile!==p||token!==employeeScheduleLoadToken||selected!==employeeSelectedDate)return;
- if(error){target.innerHTML='<div class="notice warn">Không tải được lịch. Vui lòng thử lại.</div>';return}
+ if(assignedError||openError){console.error('loadSchedules',assignedError||openError);target.innerHTML='<div class="notice warn">Không tải được lịch. Vui lòng thử lại.</div>';return}
+ const data=[...(assignedRows||[]),...(openRows||[])].sort((a,b)=>String(a.start_time||'').localeCompare(String(b.start_time||'')));
 
- const {data:regs}=await sb.from('shift_registrations')
+ const {data:regs,error:regError}=await sb.from('shift_registrations')
    .select('id,schedule_id,status,rejection_reason,created_at')
    .eq('employee_id',userId).order('created_at',{ascending:false});
  if(session!==s||profile!==p||token!==employeeScheduleLoadToken||selected!==employeeSelectedDate)return;
+ if(regError)console.error('loadSchedules registrations',regError);
 
  const rm=new Map();(regs||[]).forEach(r=>{if(!rm.has(r.schedule_id))rm.set(r.schedule_id,r)});
  const activeRows=(data||[]).filter(x=>x.status!=='cancelled');
@@ -804,8 +806,9 @@ async function loadSalarySummary(){
  const p=profile,s=session;if(!sb||!p||!s||p.role!=='employee')return;
  const money=n=>Number(n||0).toLocaleString('vi-VN')+'đ';
  const today=localToday(),monthStart=today.slice(0,8)+'01',monthEnd=dateAdd(monthStart,32).slice(0,8)+'01';
- const [{data:profRow,error:profErr},{data:periods,error:periodErr}]=await Promise.all([
+ const [{data:profRow,error:profErr},{data:storeRow,error:storeErr},{data:periods,error:periodErr}]=await Promise.all([
    sb.from('profiles').select('hourly_rate').eq('id',s.user.id).single(),
+   sb.from('stores').select('hourly_default_rate').eq('id',p.store_id).single(),
    sb.from('payroll_periods').select('id,period_name,start_date,end_date,status').eq('store_id',p.store_id).lte('start_date',today).gte('end_date',monthStart).order('start_date',{ascending:false}).limit(1)
  ]);
  if(profErr){if(el('salaryHero'))el('salaryHero').textContent='Chưa tải được';return}
@@ -818,7 +821,7 @@ async function loadSalarySummary(){
  }
  const [{data:atts,error:attErr}]=await Promise.all([sb.from('attendance').select('check_in,check_out,worked_minutes').eq('employee_id',s.user.id).gte('check_in',monthStart+'T00:00:00+07:00').lt('check_in',monthEnd+'T00:00:00+07:00').order('check_in',{ascending:false})]);
  if(attErr){if(el('salaryHero'))el('salaryHero').textContent='Chưa tải được';return}
- const rate=Number(profRow?.hourly_rate||0),minutes=(atts||[]).reduce((sum,x)=>sum+Number(x.worked_minutes||0),0),hours=minutes/60,amount=Math.round(hours*rate);el('salaryHero').textContent=money(amount);el('salaryHoursBig').textContent=(Math.round(hours*100)/100).toLocaleString('vi-VN')+'h';el('salaryRateBig').textContent=money(rate)+'/h';el('hourly').textContent=money(rate)+'/giờ';el('salaryHours').textContent=(Math.round(hours*100)/100).toLocaleString('vi-VN')+' giờ';el('salaryNet').textContent=money(amount);const hero=el('salary')?.querySelector('.salary-hero div[style]');if(hero)hero.textContent='Tạm tính từ giờ công · chưa có kỳ lương chốt.';
+ const rate=Number(profRow?.hourly_rate ?? storeRow?.hourly_default_rate ?? 0),minutes=(atts||[]).reduce((sum,x)=>sum+Number(x.worked_minutes||0),0),hours=minutes/60,amount=Math.round(hours*rate);el('salaryHero').textContent=money(amount);el('salaryHoursBig').textContent=(Math.round(hours*100)/100).toLocaleString('vi-VN')+'h';el('salaryRateBig').textContent=money(rate)+'/h';el('hourly').textContent=money(rate)+'/giờ';el('salaryHours').textContent=(Math.round(hours*100)/100).toLocaleString('vi-VN')+' giờ';el('salaryNet').textContent=money(amount);const hero=el('salary')?.querySelector('.salary-hero div[style]');if(hero)hero.textContent='Tạm tính từ giờ công · chưa có kỳ lương chốt.';
 }
 
 async function getEmployeeWorkState(){
