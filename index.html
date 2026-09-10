@@ -471,6 +471,17 @@ document.addEventListener('touchstart', trackActivity, { passive: true });
 document.addEventListener('keydown', trackActivity);
 document.addEventListener('input', trackActivity);
 
+// Khi Safari đưa app ra nền qua thời điểm 00:00, lần quay lại app sẽ hiển thị
+// ngay Tồn đầu của ngày mới và các phát sinh trong ngày mới (không mang số ngày cũ sang).
+let renderedDayKey = localDateKey();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !currentUser) return;
+  const today = localDateKey();
+  if (today !== renderedDayKey && !isDateFilterActive()) {
+    renderedDayKey = today;
+    render();
+  }
+});
 
 async function syncItemToSupabase(tab, item) {
   const table = tab === 'raw' ? 'raw_items' : 'fg_items';
@@ -575,14 +586,44 @@ function getLogsBeforeFilter(logsArray, item, tab) {
   });
 }
 
+function getCurrentDayRawStats(item) {
+  const today = localDateKey();
+  const todayLogs = logs.filter(l => l.tab === 'raw' && l.itemId === item.id && getLogDateKey(l) === today);
+  const imported = todayLogs.filter(l => normalizeActionType(l) === 'import')
+    .reduce((s,l) => s + Number(l.qty || 0), 0);
+  const exported = todayLogs.filter(l => normalizeActionType(l) === 'export')
+    .reduce((s,l) => s + Number(l.qty || 0), 0);
+  const adjustment = todayLogs.filter(l => normalizeActionType(l) === 'adjustment')
+    .reduce((s,l) => s + adjustmentDelta(l), 0);
+  const stock = getStockRaw(item);
+  // raw_items lưu tổng lũy kế để làm nguồn dữ liệu Cloud.
+  // Phần hiển thị trong ngày phải tách riêng: Tồn đầu hôm nay = Tồn hiện tại - phát sinh hôm nay.
+  const opening = stock - imported + exported - adjustment;
+  return { opening, imported, exported, adjustment, stock };
+}
+
+function getCurrentDayFGStats(item) {
+  const today = localDateKey();
+  const todayLogs = logs.filter(l => l.tab === 'fg' && l.itemId === item.id && getLogDateKey(l) === today);
+  const sales = todayLogs.filter(l => normalizeActionType(l) === 'sales')
+    .reduce((s,l) => s + Number(l.qty || 0), 0);
+  const production = todayLogs.filter(l => normalizeActionType(l) === 'production')
+    .reduce((s,l) => s + Number(l.qty || 0), 0);
+  const returned = todayLogs.filter(l => normalizeActionType(l) === 'return')
+    .reduce((s,l) => s + Number(l.qty || 0), 0);
+  const waste = todayLogs.filter(l => normalizeActionType(l) === 'waste')
+    .reduce((s,l) => s + Number(l.qty || 0), 0);
+  const adjustment = todayLogs.filter(l => normalizeActionType(l) === 'adjustment')
+    .reduce((s,l) => s + adjustmentDelta(l), 0);
+  const stock = getStockFG(item);
+  // Công thức: Tồn cuối = Tồn đầu + Nấu thêm - Xuất bán + Thu hồi - Hủy + Điều chỉnh.
+  const opening = stock - production + sales - returned + waste - adjustment;
+  return { opening, sales, production, returned, waste, adjustment, stock };
+}
+
 function getRawStatsByDate(item) {
   if (!isDateFilterActive()) {
-    return {
-      opening: Number(item.opening || 0),
-      imported: Number(item.imported || 0),
-      exported: Number(item.exported || 0),
-      stock: getStockRaw(item)
-    };
+    return getCurrentDayRawStats(item);
   }
 
   const beforeLogs = getLogsBeforeFilter(logs, item, 'raw');
@@ -608,14 +649,7 @@ function getRawStatsByDate(item) {
 
 function getFGStatsByDate(item) {
   if (!isDateFilterActive()) {
-    return {
-      opening: Number(item.opening || 0),
-      sales: Number(item.sales || 0),
-      production: Number(item.production || 0),
-      returned: Number(item.returned || 0),
-      waste: Number(item.waste || 0),
-      stock: getStockFG(item)
-    };
+    return getCurrentDayFGStats(item);
   }
 
   const beforeLogs = getLogsBeforeFilter(logs, item, 'fg');
@@ -1933,6 +1967,7 @@ function auditView() {
 }
 
 function render() {
+  renderedDayKey = localDateKey();
   document.getElementById('root').innerHTML = !currentUser ? loginView() : `
     <div class="app-container">
       <header>
