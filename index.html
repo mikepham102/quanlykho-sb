@@ -362,7 +362,9 @@ async function fetchInitialData() {
     }
 
     try { fabiRecords = JSON.parse(localStorage.getItem('sb_fabi_reconcile') || JSON.stringify(fabiRecords || {})); } catch {}
-    // Không khôi phục bản nháp kiểm kê cũ từ localStorage. Kiểm kê chỉ được giữ trong phiên hiện tại cho đến khi xác nhận.
+    // Không khôi phục kiểm kê đã nhập trước đó. Sau khi xác nhận, logs Cloud là nguồn sự thật duy nhất.
+    inventoryCounts = {};
+    localStorage.removeItem('sb_inventory_counts');
 
     // Nếu Safari khôi phục phiên của nhân viên, vẫn phải xác nhận vị trí trước khi cho vào hệ thống.
     if (currentUser && String(currentUser.role || '').toLowerCase() === 'staff' && sessionStorage.getItem(SESSION_LOCATION_KEY) !== '1') {
@@ -391,9 +393,13 @@ function roleLabel(role) { return ({ admin: 'Admin Owner', owner: 'Owner', manag
 function dateTime() { return new Date().toLocaleString('vi-VN'); }
 function fmt(num) { return Number(num || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 }); }
 
+function sameLedgerItemId(a, b) {
+  return String(a ?? '').trim() === String(b ?? '').trim();
+}
+
 function getLedgerLogs(tab, itemId, endTime = Infinity) {
   return logs
-    .filter(l => l.tab === tab && l.itemId === itemId)
+    .filter(l => l.tab === tab && sameLedgerItemId(l.itemId, itemId))
     .map((l, idx) => ({ l, idx }))
     .filter(o => {
       const d = getLogDate(o.l);
@@ -425,17 +431,41 @@ function applyLedgerEvent(tab, stock, log) {
 }
 
 function calculateStockFromLogs(tab, item, sourceLogs, endTime = Infinity) {
-  let stock = Number(item?.opening || 0);
-  if (!Number.isFinite(stock)) stock = 0;
-  const itemLogs = (sourceLogs || [])
-    .filter(l => l.tab === tab && l.itemId === item.id)
-    .map((l, idx) => ({ l, idx }))
+  const all = (sourceLogs || [])
+    .filter(l => l.tab === tab && sameLedgerItemId(l.itemId, item.id))
+    .map((l, idx) => ({ l, idx, ts: logTimestamp(l, idx) }))
     .filter(o => {
       const d = getLogDate(o.l);
       return !d || Number.isNaN(d.getTime()) || d.getTime() <= endTime;
     })
-    .sort((a,b) => logTimestamp(a.l,a.idx) - logTimestamp(b.l,b.idx));
-  for (const {l} of itemLogs) stock = applyLedgerEvent(tab, stock, l);
+    .sort((a,b) => a.ts - b.ts || a.idx - b.idx);
+
+  // Kiểm kê là MỐC GỐC MỚI của tồn kho. Lấy lần kiểm kê gần nhất làm
+  // điểm bắt đầu, sau đó chỉ cộng/trừ các giao dịch phát sinh sau mốc đó.
+  // Điều này loại bỏ hoàn toàn ảnh hưởng của lịch sử sai trước khi kiểm kê.
+  let stock = Number(item?.opening || 0);
+  if (!Number.isFinite(stock) || stock < 0) stock = 0;
+
+  let startIndex = 0;
+  for (let i = all.length - 1; i >= 0; i--) {
+    if (normalizeActionType(all[i].l) !== 'stocktake') continue;
+    const target = Number(all[i].l.after);
+    if (!Number.isFinite(target) || target < 0) continue;
+    stock = target;
+    startIndex = i + 1;
+    break;
+  }
+
+  for (let i = startIndex; i < all.length; i++) {
+    const l = all[i].l;
+    const type = normalizeActionType(l);
+    if (type === 'stocktake') {
+      const target = Number(l.after);
+      if (Number.isFinite(target) && target >= 0) stock = target;
+    } else {
+      stock = applyLedgerEvent(tab, stock, l);
+    }
+  }
   return stock;
 }
 
@@ -2032,6 +2062,7 @@ async function applyInventoryStocktake() {
 
     // Log Cloud là nguồn sự thật. Không lưu lại bản nháp kiểm kê sau khi đã xác nhận.
     delete inventoryCounts[date];
+    localStorage.removeItem('sb_inventory_counts');
 
     const localLogs = payload.map(l => ({
       ...l,
