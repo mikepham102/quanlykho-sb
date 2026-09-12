@@ -394,12 +394,29 @@ function dateTime() { return new Date().toLocaleString('vi-VN'); }
 function fmt(num) { return Number(num || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 }); }
 
 function sameLedgerItemId(a, b) {
-  return String(a ?? '').trim() === String(b ?? '').trim();
+  const aa = String(a ?? '').trim();
+  const bb = String(b ?? '').trim();
+  return aa !== '' && bb !== '' && aa === bb;
 }
 
-function getLedgerLogs(tab, itemId, endTime = Infinity) {
+// Một số dữ liệu cũ có thể mang itemId khác kiểu/khác ID sau khi mặt hàng được
+// tạo lại. ID vẫn là khóa chính; tên chỉ được dùng làm fallback khi tên là duy nhất.
+function logBelongsToItem(log, tab, item) {
+  if (!log || log.tab !== tab || !item) return false;
+  if (sameLedgerItemId(log.itemId, item.id)) return true;
+  const logName = String(log.item || '').trim().toLowerCase();
+  const itemName = String(item.name || '').trim().toLowerCase();
+  if (!logName || !itemName || logName !== itemName) return false;
+  const sameNameItems = (tab === 'raw' ? raw : fg).filter(x => String(x.name || '').trim().toLowerCase() === itemName);
+  return sameNameItems.length === 1;
+}
+
+function getLedgerLogs(tab, itemId, endTime = Infinity, item = null) {
   return logs
-    .filter(l => l.tab === tab && sameLedgerItemId(l.itemId, itemId))
+    .filter(l => {
+      if (item) return logBelongsToItem(l, tab, item);
+      return l.tab === tab && sameLedgerItemId(l.itemId, itemId);
+    })
     .map((l, idx) => ({ l, idx }))
     .filter(o => {
       const d = getLogDate(o.l);
@@ -432,7 +449,7 @@ function applyLedgerEvent(tab, stock, log) {
 
 function calculateStockFromLogs(tab, item, sourceLogs, endTime = Infinity) {
   const all = (sourceLogs || [])
-    .filter(l => l.tab === tab && sameLedgerItemId(l.itemId, item.id))
+    .filter(l => logBelongsToItem(l, tab, item))
     .map((l, idx) => ({ l, idx, ts: logTimestamp(l, idx) }))
     .filter(o => {
       const d = getLogDate(o.l);
@@ -501,29 +518,32 @@ function getLogsBeforeDate(tab, item, dateKey) {
   return getLedgerLogs(tab, item.id, getDayBoundaryMs(dateKey, false) - 1);
 }
 
+function getDateEndForView(dateKey) {
+  // Với hôm nay, chỉ tính đến THỜI ĐIỂM HIỆN TẠI. Không bao giờ coi 23:59:59
+  // của hôm nay là dữ liệu đã xảy ra, vì như vậy log tương lai sẽ làm sai tồn.
+  return dateKey === localDateKey() ? Date.now() : getDayBoundaryMs(dateKey, true);
+}
+
 function getLogsInRange(tab, item, startDate, endDate) {
   const startMs = getDayBoundaryMs(startDate, false);
-  const endMs = getDayBoundaryMs(endDate, true);
-  return getLedgerLogs(tab, item.id, endMs)
+  const endMs = getDateEndForView(endDate);
+  return getLedgerLogs(tab, item.id, endMs, item)
     .filter(({l}) => {
-      const d = getLogDate(l);
-      const t = d && !Number.isNaN(d.getTime()) ? d.getTime() : Number(l.timestamp || 0);
+      const t = logTimestamp(l, 0);
       return t >= startMs && t <= endMs;
     });
 }
 
 function stockBeforeDate(tab, item, dateKey) {
-  let stock = Number(item?.opening || 0);
-  if (!Number.isFinite(stock) || stock < 0) stock = Math.max(0, Number(item?.opening || 0));
-  for (const {l} of getLogsBeforeDate(tab, item, dateKey)) {
-    stock = applyLedgerEvent(tab, stock, l);
-  }
-  return stock;
+  // Tồn trước ngày được chọn phải lấy theo Ledger, trong đó Kiểm kê gần nhất
+  // luôn là mốc gốc. Không cộng lại lịch sử cũ vào mốc kiểm kê.
+  const beforeEnd = getDayBoundaryMs(dateKey, false) - 1;
+  return calculateStock(tab, item, beforeEnd);
 }
 
 function stockAtDate(tab, item, dateKey) {
-  // Luôn dùng cùng một Ledger cho cả ngày hiện tại và ngày được chọn.
-  return calculateStock(tab, item, getDayBoundaryMs(dateKey, true));
+  // Hôm nay = đến thời điểm hiện tại; ngày cũ = hết ngày đó.
+  return calculateStock(tab, item, getDateEndForView(dateKey));
 }
 
 function configSaveLocal(key, value) {
@@ -1239,47 +1259,19 @@ async function confirmAllDrafts() {
         throw new Error(`Không thể ghi Nhật Ký Cloud: ${logError.message || logError}`);
       }
 
-      // 2) Cập nhật hàng hóa với optimistic concurrency.
-      // Nếu Cloud đã thay đổi sau lúc đọc freshItem, update sẽ không khớp
-      // và giao dịch sẽ bị hủy thay vì ghi đè dữ liệu mới hơn.
-      let updateQuery = supabaseClient
+      // 2) Log Cloud là nguồn sự thật của tồn kho.
+      // Các cột tổng trên raw_items/fg_items chỉ là dữ liệu phụ. Nếu update
+      // các cột tổng bị RLS/permission chặn thì KHÔNG được làm mất Log vừa ghi,
+      // vì nếu rollback Log ở đây sẽ tái diễn lỗi 'giao dịch không vào Database'.
+      const { error: itemError } = await supabaseClient
         .from(itemTable)
         .update(updatedItem)
         .eq('id', originalItem.id);
-
-      if (savedTab === 'raw') {
-        updateQuery = updateQuery
-          .eq('opening', Number(originalItem.opening || 0))
-          .eq('imported', Number(originalItem.imported || 0))
-          .eq('exported', Number(originalItem.exported || 0))
-      } else {
-        updateQuery = updateQuery
-          .eq('opening', Number(originalItem.opening || 0))
-          .eq('sales', Number(originalItem.sales || 0))
-          .eq('production', Number(originalItem.production || 0))
-          .eq('returned', Number(originalItem.returned || 0))
-          .eq('waste', Number(originalItem.waste || 0))
+      if (itemError) {
+        console.warn('Không cập nhật được cột tổng hàng hóa; Ledger vẫn dùng Log Cloud:', itemError.message || itemError);
       }
 
-      const { data: updatedRows, error: itemError } = await updateQuery.select('id');
-
-      if (itemError || !updatedRows?.length) {
-        const { error: rollbackError } = await supabaseClient
-          .from('logs')
-          .delete()
-          .in('id', payloadSupabaseList.map(x => x.id));
-
-        const reason = itemError
-          ? (itemError.message || itemError)
-          : 'Dữ liệu Cloud đã thay đổi bởi thao tác khác trước khi giao dịch được chốt.';
-        const rollbackText = rollbackError
-          ? `\n⚠️ Không thể tự động xóa Log tạm: ${rollbackError.message || rollbackError}`
-          : '\nCác Log tạm đã được hủy.';
-
-        throw new Error(`Giao dịch không được chốt: ${reason}.${rollbackText}`);
-      }
-
-      // Chỉ sau khi Cloud thành công mới cập nhật state trên màn hình.
+      // Chỉ sau khi Log Cloud thành công mới cập nhật state trên màn hình.
       const localItem = (savedTab === 'raw' ? raw : fg).find(x => x.id === savedItemId);
       if (localItem) Object.assign(localItem, updatedItem);
 
@@ -1580,7 +1572,7 @@ function ledgerStock(tab, state) {
 function simulateItemLedger(tab, item, overrideLogId = null, overrideQty = null, deletedLogId = null) {
   const itemLogs = logs
     .map((l, idx) => ({ l, idx }))
-    .filter(o => o.l.tab === tab && o.l.itemId === item.id && o.l.id !== deletedLogId)
+    .filter(o => logBelongsToItem(o.l, tab, item) && o.l.id !== deletedLogId)
     .sort((a,b) => logTimestamp(a.l,a.idx) - logTimestamp(b.l,b.idx));
 
   const state = {
