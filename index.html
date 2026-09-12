@@ -263,6 +263,7 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 phút không thao tác
 const SESSION_USER_KEY = 'awan_user';
 const SESSION_ACTIVITY_KEY = 'awan_last_activity';
+const SESSION_LOCATION_KEY = 'awan_staff_location_verified';
 
 let currentUser = null;
 let shopLocation = null;
@@ -329,7 +330,8 @@ async function fetchInitialData() {
         after: Number(l.after || 0),
         actionType: l.actiontype,
         user: l.user,
-        username: l.userid || '',
+        userId: l.userid || '',
+        username: l.username || '',
         timestamp: Number(l.timestamp || 0),
         dateKey: l.datekey || '',
         editedAt: l.editedat || null,
@@ -352,6 +354,11 @@ async function fetchInitialData() {
 
     try { fabiRecords = JSON.parse(localStorage.getItem('sb_fabi_reconcile') || JSON.stringify(fabiRecords || {})); } catch {}
     try { inventoryCounts = JSON.parse(localStorage.getItem('sb_inventory_counts') || JSON.stringify(inventoryCounts || {})); } catch {}
+
+    // Nếu Safari khôi phục phiên của nhân viên, vẫn phải xác nhận vị trí trước khi cho vào hệ thống.
+    if (currentUser && String(currentUser.role || '').toLowerCase() === 'staff' && sessionStorage.getItem(SESSION_LOCATION_KEY) !== '1') {
+      await verifyStaffLocation(true);
+    }
 
     render();
   } catch (err) {
@@ -489,6 +496,7 @@ function saveSession() {
 function clearSession() {
   sessionStorage.removeItem(SESSION_USER_KEY);
   sessionStorage.removeItem(SESSION_ACTIVITY_KEY);
+  sessionStorage.removeItem(SESSION_LOCATION_KEY);
 }
 
 function initSession() {
@@ -545,7 +553,98 @@ async function syncItemToSupabase(tab, item) {
   if (error) throw error;
 }
 
-function login() {
+function getShopLocationNormalized() {
+  if (!shopLocation) return null;
+  let loc = shopLocation;
+  if (typeof loc === 'string') {
+    try { loc = JSON.parse(loc); } catch { return null; }
+  }
+  const lat = Number(loc?.lat);
+  const lng = Number(loc?.lng);
+  const radius = Number(loc?.radius || 100);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng, radius: Number.isFinite(radius) && radius > 0 ? radius : 100 };
+}
+
+function distanceMeters(lat1, lng1, lat2, lng2) {
+  const toRad = d => d * Math.PI / 180;
+  const R = 6371000;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat/2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function verifyStaffLocation(fromSession = false) {
+  return new Promise(resolve => {
+    if (!currentUser || String(currentUser.role || '').toLowerCase() !== 'staff') return resolve(true);
+
+    const loc = getShopLocationNormalized();
+    if (!loc) {
+      if (!fromSession) {
+        const err = document.getElementById('loginError');
+        if (err) { err.textContent = 'Chưa có vị trí quán. Vui lòng báo Admin cài đặt GPS quán trước khi đăng nhập.'; err.style.display = 'block'; }
+      } else {
+        currentUser = null;
+        clearSession();
+        alert('Chưa có vị trí GPS quán. Nhân viên chưa thể vào hệ thống. Vui lòng báo Admin cài đặt vị trí quán.');
+      }
+      return resolve(false);
+    }
+
+    if (!navigator.geolocation) {
+      if (!fromSession) {
+        const err = document.getElementById('loginError');
+        if (err) { err.textContent = 'Thiết bị không hỗ trợ định vị GPS. Không thể đăng nhập tài khoản nhân viên.'; err.style.display = 'block'; }
+      } else {
+        currentUser = null; clearSession();
+        alert('Thiết bị không hỗ trợ GPS. Không thể vào hệ thống bằng tài khoản nhân viên.');
+      }
+      return resolve(false);
+    }
+
+    const request = navigator.geolocation.getCurrentPosition(pos => {
+      const lat = Number(pos.coords.latitude);
+      const lng = Number(pos.coords.longitude);
+      const accuracy = Number(pos.coords.accuracy || 0);
+      const distance = distanceMeters(lat, lng, loc.lat, loc.lng);
+      const allowed = distance <= loc.radius;
+
+      if (!allowed) {
+        if (!fromSession) {
+          const err = document.getElementById('loginError');
+          if (err) {
+            err.innerHTML = `📍 Bạn đang cách quán khoảng <b>${Math.round(distance)}m</b>. Phạm vi đăng nhập cho phép là <b>${Math.round(loc.radius)}m</b>.<br>Vui lòng đến quán rồi đăng nhập lại.`;
+            err.style.display = 'block';
+          }
+        } else {
+          currentUser = null; clearSession();
+          alert(`📍 Không thể khôi phục phiên nhân viên vì vị trí hiện tại cách quán khoảng ${Math.round(distance)}m (cho phép ${Math.round(loc.radius)}m).`);
+        }
+        return resolve(false);
+      }
+
+      sessionStorage.setItem(SESSION_LOCATION_KEY, '1');
+      sessionStorage.setItem('awan_staff_location_distance', String(Math.round(distance)));
+      sessionStorage.setItem('awan_staff_location_accuracy', String(Math.round(accuracy)));
+      resolve(true);
+    }, err => {
+      let message = 'Không xác định được vị trí hiện tại.';
+      if (err?.code === 1) message = 'Bạn chưa cho phép trình duyệt sử dụng vị trí. Hãy bật Quyền vị trí cho Safari rồi đăng nhập lại.';
+      if (err?.code === 2) message = 'Không lấy được vị trí hiện tại. Vui lòng bật GPS/Vị trí và thử lại.';
+      if (err?.code === 3) message = 'Lấy vị trí quá lâu. Vui lòng thử đăng nhập lại ở nơi có tín hiệu GPS tốt hơn.';
+      if (!fromSession) {
+        const e = document.getElementById('loginError');
+        if (e) { e.textContent = '📍 ' + message; e.style.display = 'block'; }
+      } else {
+        currentUser = null; clearSession(); alert('📍 ' + message);
+      }
+      resolve(false);
+    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 });
+  });
+}
+
+async function login() {
   const u = document.getElementById('loginUser').value.trim();
   const p = document.getElementById('loginPass').value;
   const acc = accounts.find(a => a.active && a.username === u && a.password === p);
@@ -557,11 +656,19 @@ function login() {
     return;
   }
 
+  err.style.display = 'none';
   currentUser = acc;
+
+  if (String(acc.role || '').toLowerCase() === 'staff') {
+    const button = document.querySelector('.login-card .btn-primary');
+    if (button) { button.disabled = true; button.textContent = '📍 ĐANG KIỂM TRA VỊ TRÍ...'; }
+    const ok = await verifyStaffLocation(false);
+    if (!ok) { currentUser = null; return; }
+  }
+
   saveSession();
   render();
 }
-
 function logout(expired = false) {
   currentUser = null;
   clearSession();
@@ -1048,6 +1155,7 @@ async function confirmAllDrafts() {
         after: p.after,
         actionType: p.draft.type,
         user: userName,
+        userId: currentUser.id,
         username: currentUser.username,
         timestamp,
         time: timeNow
@@ -1521,9 +1629,17 @@ function saveLocalState() {
 // SỬA / XÓA NHẬT KÝ THEO PHÂN QUYỀN
 function canEditLog(l) {
   if (!currentUser) return false;
-  if (isOwnerRole() || currentUser.role === 'manager') return true;
-  if (l.username) return l.username === currentUser.username;
-  return l.user && l.user.startsWith(currentUser.name);
+  const role = String(currentUser.role || '').toLowerCase();
+  if (['admin','owner','manager'].includes(role)) return true;
+
+  // Nhân viên chỉ được sửa nhật ký do chính tài khoản đó tạo.
+  const logUserId = String(l.userId || '').trim();
+  const logUsername = String(l.username || '').trim();
+  const currentId = String(currentUser.id || '').trim();
+  const currentUsername = String(currentUser.username || '').trim();
+  if (logUserId && currentId) return logUserId === currentId;
+  if (logUsername && currentUsername) return logUsername === currentUsername;
+  return false;
 }
 
 function editLog(id) {
@@ -1724,7 +1840,7 @@ async function deleteLog(id) {
       actiontype: type,
       timestamp: Number(l.timestamp || Date.now()),
       datekey: l.dateKey || new Date().toLocaleDateString('en-CA'),
-      userid: l.username || currentUser.id || '',
+      userid: l.userId || l.username || currentUser.id || '',
       user: l.user || '',
       time: l.time || '',
       editedat: l.editedAt || null,
