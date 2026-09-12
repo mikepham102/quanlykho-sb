@@ -210,7 +210,6 @@
     .modal-buttons button { flex: 1; padding: 12px; border-radius: 10px; font-weight: 700; cursor: pointer; border: none; font-size: 14px; }
     .modal-buttons .btn-cancel { background: var(--bg-color); color: var(--text-main); }
     .modal-buttons .btn-save { background: var(--brand-blue); color: #fff; }
-    .modal-buttons .btn-save:disabled { opacity:.55; cursor:not-allowed; transform:none; }
     .inventory-actions { position: sticky; bottom: -24px; z-index: 20; display:flex; flex-wrap:wrap; gap:10px; margin:16px -24px -24px; padding:12px 24px calc(12px + env(safe-area-inset-bottom, 0px)); background:rgba(255,255,255,.96); border-top:1px solid var(--border-color); box-shadow:0 -8px 20px rgba(15,23,42,.08); backdrop-filter:blur(8px); }
     .inventory-actions button { flex:1 1 calc(50% - 5px); min-height:46px; padding:12px; border-radius:12px; font-weight:800; cursor:pointer; border:none; font-size:14px; }
     .inventory-actions .inventory-close { background:var(--bg-color); color:var(--text-main); }
@@ -438,7 +437,6 @@ async function switchLocation(id) {
   try {
     showInventoryNotice('⏳ Đang chuyển điểm bán', `Đang tải dữ liệu của <b>${loc.name || loc.code || id}</b>...`);
     await fetchLocationData();
-    tempDraftList = [];
     closeModal();
     render();
     showSuccessToast(`✓ Đã chuyển sang ${loc.name || loc.code || id}`);
@@ -1010,40 +1008,16 @@ function validateTransaction(tab, item, type, qty) {
 }
 
 async function confirmAllDrafts() {
-  if (transactionSaving) return;
-  transactionSaving = true;
-  const saveBtn = document.querySelector('#sheet .btn-save');
-  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Đang lưu...'; }
-  try {
-    return await confirmAllDraftsCore();
-  } finally {
-    transactionSaving = false;
-  }
-}
-
-async function confirmAllDraftsCore() {
   const item = (draftTab === 'raw' ? raw : fg)[draftItem];
   const inputQty = Number(document.getElementById('draftAmount')?.value || 0);
 
-  // QA: mọi số lượng đang nằm trong ô nhập đều phải được đưa vào danh sách chờ
-  // trước khi chốt. Tránh trường hợp đã có thao tác lưu tạm nhưng người dùng
-  // nhập thêm một thao tác rồi bấm Xác nhận và phần nhập thêm bị bỏ qua.
-  if (inputQty > 0) {
+  // Nếu người dùng có nhập số lượng trực tiếp mà chưa bấm Lưu Tạm -> đưa vào danh sách chờ.
+  if (tempDraftList.length === 0 && inputQty > 0) {
     const type = document.getElementById('draftType').value;
     tempDraftList.push({ type, qty: inputQty, actionName: actionLabel(draftTab, type) });
   }
 
   if (!item) return showInventoryNotice('⚠️ Không tìm thấy mặt hàng', 'Vui lòng đóng cửa sổ và thao tác lại.');
-
-  // QA: luôn lấy bản ghi hàng hóa mới nhất từ Cloud trước khi chốt giao dịch.
-  // Tránh dùng tồn cũ trên màn hình khi dữ liệu vừa thay đổi ở nơi khác.
-  const liveTable = draftTab === 'raw' ? 'raw_items' : 'fg_items';
-  const { data: liveItem, error: liveItemError } = await supabaseClient
-    .from(liveTable).select('*').eq('id', item.id).eq('location_id', currentLocationId).maybeSingle();
-  if (liveItemError) return showInventoryNotice('❌ Không thể kiểm tra tồn kho', liveItemError.message || String(liveItemError));
-  if (!liveItem) return showInventoryNotice('❌ Không tìm thấy dữ liệu Cloud', 'Mặt hàng không còn tồn tại tại điểm bán hiện tại.');
-  Object.assign(item, liveItem);
-
   if (tempDraftList.length === 0) {
     return showInventoryNotice('⚠️ Chưa có giao dịch', 'Vui lòng nhập số lượng hoặc bấm “Lưu tạm” ít nhất 1 thao tác.');
   }
@@ -1472,8 +1446,6 @@ function canDeleteAnyLog() {
   return isOwnerRole();
 }
 function logTimestamp(log, fallbackIndex = 0) {
-  const ts = Number(log?.timestamp);
-  if (Number.isFinite(ts) && ts > 0) return ts;
   const raw = log?.createdAt || log?.created_at || log?.time;
   const t = raw ? Date.parse(raw) : NaN;
   return Number.isFinite(t) ? t : fallbackIndex;
