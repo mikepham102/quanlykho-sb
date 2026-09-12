@@ -339,6 +339,7 @@ let draftTab = null;
 let editLogId = null;
 let editingItemId = null;
 let tempDraftList = []; // Mảng chứa danh sách thao tác lưu tạm
+let transactionSaving = false; // Khóa chống ghi giao dịch 2 lần trên cùng thiết bị
 let orderingTab = 'raw';
 
 let accounts = [];
@@ -1008,82 +1009,117 @@ function validateTransaction(tab, item, type, qty) {
 }
 
 async function confirmAllDrafts() {
-  const item = (draftTab === 'raw' ? raw : fg)[draftItem];
-  const inputQty = Number(document.getElementById('draftAmount')?.value || 0);
+  // KHÓA NGAY TỪ LÚC BẤM NÚT: chống double-click / click + touch tạo 2 giao dịch.
+  if (transactionSaving) return;
+  transactionSaving = true;
+  const saveButtons = Array.from(document.querySelectorAll('button')).filter(b => /confirmAllDrafts\(\)/.test(b.getAttribute('onclick') || ''));
+  saveButtons.forEach(b => { b.disabled = true; b.dataset.originalText = b.textContent; b.textContent = '⏳ Đang lưu...'; });
 
-  // Nếu người dùng có nhập số lượng trực tiếp mà chưa bấm Lưu Tạm -> đưa vào danh sách chờ.
-  if (tempDraftList.length === 0 && inputQty > 0) {
-    const type = document.getElementById('draftType').value;
-    tempDraftList.push({ type, qty: inputQty, actionName: actionLabel(draftTab, type) });
-  }
-
-  if (!item) return showInventoryNotice('⚠️ Không tìm thấy mặt hàng', 'Vui lòng đóng cửa sổ và thao tác lại.');
-  if (tempDraftList.length === 0) {
-    return showInventoryNotice('⚠️ Chưa có giao dịch', 'Vui lòng nhập số lượng hoặc bấm “Lưu tạm” ít nhất 1 thao tác.');
-  }
-
-  // QUAN TRỌNG: kiểm tra toàn bộ chuỗi giao dịch trên bản sao.
-  // Không được thay đổi item/log/localStorage trước khi Cloud xác nhận thành công.
-  const trial = JSON.parse(JSON.stringify(item));
-  const prepared = [];
-  for (const draft of tempDraftList) {
-    const qty = Number(draft.qty);
-    const err = validateTransaction(draftTab, trial, draft.type, qty);
-    if (err) return showInventoryNotice('⚠️ KHÔNG THỂ GHI NHẬN', `${err}\n\nDữ liệu chưa được lưu.`);
-
-    const before = draftTab === 'raw' ? getStockRaw(trial) : getStockFG(trial);
-    applyDraftToItem(trial, draftTab, draft.type, qty);
-    const after = draftTab === 'raw' ? getStockRaw(trial) : getStockFG(trial);
-
-    if (after < -1e-9) {
-      return showInventoryNotice('⚠️ GIAO DỊCH BỊ CHẶN', `${actionLabel(draftTab, draft.type)} ${fmt(qty)} ${item.unit} làm tồn kho âm.\nTồn sau dự kiến: ${fmt(after)} ${item.unit}.\n\nKhông có dữ liệu nào được ghi.`);
-    }
-
-    prepared.push({ draft, qty, before, after });
-  }
-
-  // Nút “Xác Nhận Lưu” chính là bước xác nhận cuối cùng.
-  // Không hiện thêm hộp xác nhận lần 2 để tránh làm chậm thao tác nhập/xuất.
-  // Các lỗi validation vẫn bị chặn trước khi ghi Database.
-
-  const savedTab = draftTab;
-  const savedItemId = item.id;
-  const originalItem = JSON.parse(JSON.stringify(item));
-  const logsToInsert = [];
-  const payloadSupabaseList = [];
-  const now = Date.now();
-  const userName = `${currentUser.name} (${roleLabel(currentUser.role)})`;
-
-  for (const p of prepared) {
-    const logId = 'log_' + now + '_' + Math.random().toString(36).substr(2, 7);
-    const timeNow = dateTime();
-    logsToInsert.push({
-      id: logId, locationId: currentLocationId, tab: savedTab, itemId: savedItemId, item: item.name,
-      action: p.draft.actionName, qty: p.qty, unit: item.unit,
-      before: p.before, after: p.after, actionType: p.draft.type, expiresAt: (savedTab === 'fg' && p.draft.type === 'production' && getShelfLifeDays(item)) ? now + getShelfLifeDays(item) * 86400000 : null,
-      user: userName, username: currentUser.username, time: timeNow
-    });
-    payloadSupabaseList.push({
-      id: logId, location_id: currentLocationId, tab: savedTab, itemid: savedItemId, item: item.name,
-      action: p.draft.actionName, qty: p.qty, unit: item.unit,
-      before: p.before, after: p.after, actiontype: p.draft.type,
-      expiresat: (savedTab === 'fg' && p.draft.type === 'production' && getShelfLifeDays(item)) ? now + getShelfLifeDays(item) * 86400000 : null,
-      timestamp: Date.now(), datekey: localDateKey(), userid: currentUser.id,
-      user: userName, time: timeNow, editedat: null, editedby: null
-    });
-  }
-
-  // Tính item mới trên bản sao; item thật chỉ cập nhật sau khi cả Log + item Cloud thành công.
-  const updatedItem = JSON.parse(JSON.stringify(trial));
+  const resetSaving = () => {
+    transactionSaving = false;
+    saveButtons.forEach(b => { b.disabled = false; if (b.dataset.originalText) b.textContent = b.dataset.originalText; });
+  };
 
   try {
-    // 1) Ghi Log trước. Nếu lỗi: item chưa bị đụng tới.
-    const { error: logError } = await supabaseClient.from('logs').insert(payloadSupabaseList);
-    if (logError) throw new Error(`Không thể ghi Nhật Ký Cloud: ${logError.message || logError}`);
+    const itemFromUi = (draftTab === 'raw' ? raw : fg)[draftItem];
+    const inputEl = document.getElementById('draftAmount');
+    const inputQty = Number(inputEl?.value || 0);
+    const inputType = document.getElementById('draftType')?.value;
 
-    // 2) Ghi hàng hóa bằng payload ĐÚNG tên cột Supabase.
-    // Không gửi object UI nếu có field camelCase; chỉ ghi đúng các cột của bảng.
-    const itemTable = savedTab === 'raw' ? 'raw_items' : 'fg_items';
+    if (!itemFromUi) {
+      resetSaving();
+      return showInventoryNotice('⚠️ Không tìm thấy mặt hàng', 'Vui lòng đóng cửa sổ và thao tác lại.');
+    }
+
+    // Số lượng đang nằm trực tiếp trong ô nhập luôn là một giao dịch hợp lệ,
+    // kể cả khi trước đó đã có thao tác Lưu tạm.
+    const drafts = tempDraftList.map(x => ({ ...x, qty: Number(x.qty) }));
+    if (inputQty > 0) {
+      if (!inputType) {
+        resetSaving();
+        return showInventoryNotice('⚠️ Chưa chọn thao tác', 'Vui lòng chọn loại thao tác trước khi xác nhận.');
+      }
+      drafts.push({ type: inputType, qty: inputQty, actionName: actionLabel(draftTab, inputType) });
+    }
+
+    if (!drafts.length) {
+      resetSaving();
+      return showInventoryNotice('⚠️ Chưa có giao dịch', 'Vui lòng nhập số lượng hoặc bấm “Lưu tạm” ít nhất 1 thao tác.');
+    }
+
+    // QUAN TRỌNG: đọc lại đúng dòng hàng hóa từ Cloud ngay trước khi chốt.
+    // Không dùng số tồn cũ đang nằm trong UI để quyết định giao dịch.
+    const itemTable = draftTab === 'raw' ? 'raw_items' : 'fg_items';
+    const { data: freshItem, error: freshError } = await supabaseClient
+      .from(itemTable)
+      .select('*')
+      .eq('id', itemFromUi.id)
+      .eq('location_id', currentLocationId)
+      .maybeSingle();
+
+    if (freshError) {
+      resetSaving();
+      return showInventoryNotice('❌ Không thể kiểm tra tồn mới nhất', `${freshError.message || freshError}\n\nDữ liệu chưa được lưu.`);
+    }
+    if (!freshItem) {
+      resetSaving();
+      return showInventoryNotice('❌ Không tìm thấy dữ liệu Cloud', 'Mặt hàng không còn tồn tại tại điểm bán đang chọn. Dữ liệu chưa được lưu.');
+    }
+
+    // Tất cả kiểm tra và tính before/after đều chạy trên bản Cloud mới nhất.
+    const trial = JSON.parse(JSON.stringify(freshItem));
+    const prepared = [];
+    for (const draft of drafts) {
+      const qty = Number(draft.qty);
+      const err = validateTransaction(draftTab, trial, draft.type, qty);
+      if (err) {
+        resetSaving();
+        return showInventoryNotice('⚠️ KHÔNG THỂ GHI NHẬN', `${err}\n\nDữ liệu chưa được lưu.`);
+      }
+
+      const before = draftTab === 'raw' ? getStockRaw(trial) : getStockFG(trial);
+      applyDraftToItem(trial, draftTab, draft.type, qty);
+      const after = draftTab === 'raw' ? getStockRaw(trial) : getStockFG(trial);
+
+      if (after < -1e-9) {
+        resetSaving();
+        return showInventoryNotice('⚠️ GIAO DỊCH BỊ CHẶN', `${actionLabel(draftTab, draft.type)} ${fmt(qty)} ${freshItem.unit} làm tồn kho âm.\nTồn sau dự kiến: ${fmt(after)} ${freshItem.unit}.\n\nKhông có dữ liệu nào được ghi.`);
+      }
+      prepared.push({ draft, qty, before, after });
+    }
+
+    const savedTab = draftTab;
+    const savedItemId = freshItem.id;
+    const originalItem = JSON.parse(JSON.stringify(freshItem));
+    const updatedItem = JSON.parse(JSON.stringify(trial));
+    const logsToInsert = [];
+    const payloadSupabaseList = [];
+    const now = Date.now();
+    const userName = `${currentUser.name} (${roleLabel(currentUser.role)})`;
+    const shelfDays = getShelfLifeDays(freshItem);
+
+    for (let i = 0; i < prepared.length; i++) {
+      const p = prepared[i];
+      const logId = 'log_' + now + '_' + Math.random().toString(36).slice(2, 9) + '_' + i;
+      const timeNow = dateTime();
+      const expiresAt = (savedTab === 'fg' && p.draft.type === 'production' && shelfDays)
+        ? now + shelfDays * 86400000 : null;
+      logsToInsert.push({
+        id: logId, locationId: currentLocationId, tab: savedTab, itemId: savedItemId, item: freshItem.name,
+        action: p.draft.actionName, qty: p.qty, unit: freshItem.unit,
+        before: p.before, after: p.after, actionType: p.draft.type, expiresAt,
+        user: userName, username: currentUser.username, time: timeNow
+      });
+      payloadSupabaseList.push({
+        id: logId, location_id: currentLocationId, tab: savedTab, itemid: savedItemId, item: freshItem.name,
+        action: p.draft.actionName, qty: p.qty, unit: freshItem.unit,
+        before: p.before, after: p.after, actiontype: p.draft.type,
+        expiresat: expiresAt, timestamp: now + i, datekey: localDateKey(), userid: currentUser.id,
+        user: userName, time: timeNow, editedat: null, editedby: null
+      });
+    }
+
+    // Payload chỉ gồm đúng các cột của bảng, không gửi object UI/camelCase.
     const itemPayload = savedTab === 'raw' ? {
       id: updatedItem.id, location_id: currentLocationId, name: updatedItem.name, unit: updatedItem.unit,
       group: updatedItem.group, opening: Number(updatedItem.opening || 0), imported: Number(updatedItem.imported || 0),
@@ -1097,33 +1133,57 @@ async function confirmAllDrafts() {
       shelf_life_days: updatedItem.shelf_life_days == null ? null : Number(updatedItem.shelf_life_days),
       sort_order: Number(updatedItem.sort_order || 0)
     };
-    const { error: itemError } = await supabaseClient
-      .from(itemTable)
-      .upsert(itemPayload);
 
-    if (itemError) {
-      const { error: rollbackError } = await supabaseClient
-        .from('logs').delete().in('id', payloadSupabaseList.map(x => x.id));
+    // 1) Ghi Log.
+    const { error: logError } = await supabaseClient.from('logs').insert(payloadSupabaseList);
+    if (logError) throw new Error(`Không thể ghi Nhật Ký Cloud: ${logError.message || logError}`);
 
+    // 2) Cập nhật hàng hóa với điều kiện optimistic-concurrency:
+    // nếu dữ liệu Cloud đã bị thiết bị khác thay đổi, update sẽ không khớp
+    // và giao dịch này sẽ được hủy thay vì ghi đè làm sai tồn.
+    let updateQuery = supabaseClient.from(itemTable).update(itemPayload)
+      .eq('id', originalItem.id)
+      .eq('location_id', currentLocationId);
+    if (savedTab === 'raw') {
+      updateQuery = updateQuery.eq('opening', Number(originalItem.opening || 0))
+        .eq('imported', Number(originalItem.imported || 0))
+        .eq('exported', Number(originalItem.exported || 0))
+        .eq('adjustment', Number(originalItem.adjustment || 0));
+    } else {
+      updateQuery = updateQuery.eq('opening', Number(originalItem.opening || 0))
+        .eq('sales', Number(originalItem.sales || 0))
+        .eq('production', Number(originalItem.production || 0))
+        .eq('returned', Number(originalItem.returned || 0))
+        .eq('waste', Number(originalItem.waste || 0))
+        .eq('adjustment', Number(originalItem.adjustment || 0));
+    }
+    const { data: updatedRows, error: itemError } = await updateQuery.select('id');
+
+    if (itemError || !updatedRows?.length) {
+      const { error: rollbackError } = await supabaseClient.from('logs').delete()
+        .in('id', payloadSupabaseList.map(x => x.id));
+      const reason = itemError
+        ? (itemError.message || itemError)
+        : 'Dữ liệu Cloud đã thay đổi bởi thao tác khác trước khi giao dịch được chốt.';
       const rollbackText = rollbackError
-        ? `\n⚠️ KHÔNG THỂ TỰ ĐỘNG KHÔI PHỤC LOG: ${rollbackError.message || rollbackError}`
-        : '\nCác Log vừa tạo đã được khôi phục.';
-
-      throw new Error(`Không thể cập nhật dữ liệu hàng hóa Cloud: ${itemError.message || itemError}.${rollbackText}`);
+        ? `\n⚠️ Không thể tự động xóa Log tạm: ${rollbackError.message || rollbackError}`
+        : '\nCác Log tạm đã được hủy.';
+      throw new Error(`Giao dịch không được chốt: ${reason}.${rollbackText}`);
     }
 
-    // Chỉ đến đây mới được coi là giao dịch thành công.
-    // Cập nhật UI ngay bằng đúng giao dịch vừa ghi. Tồn đầu KHÔNG bị thay đổi.
-    Object.assign(item, updatedItem);
+    // Chỉ sau khi cả Log + hàng hóa Cloud thành công mới cập nhật state UI.
+    const localItem = (savedTab === 'raw' ? raw : fg).find(x => x.id === savedItemId);
+    if (localItem) Object.assign(localItem, updatedItem);
     logs = [...logsToInsert, ...logs];
     sortLogsNewestFirst();
     localStorage.setItem(`awan_logs_backup_${currentLocationId}`, JSON.stringify(logs));
     localStorage.setItem(savedTab === 'raw' ? `awan_raw_backup_${currentLocationId}` : `awan_fg_backup_${currentLocationId}`, JSON.stringify(savedTab === 'raw' ? raw : fg));
 
+    tempDraftList = [];
     closeModal();
     render();
 
-    // Xác nhận lại từ Cloud để tránh tình trạng màn hình và Nhật Ký lệch nhau.
+    // Đồng bộ lại toàn bộ state từ Cloud sau giao dịch thành công.
     try {
       await fetchLocationData();
     } catch (refreshErr) {
@@ -1131,10 +1191,10 @@ async function confirmAllDrafts() {
     }
     showSuccessToast(`${prepared.length} giao dịch đã được ghi nhận`);
   } catch (err) {
-    // Bảo đảm state trình duyệt không bị thay đổi nếu Cloud thất bại.
-    Object.assign(item, originalItem);
     console.error('Lỗi khi ghi giao dịch:', err);
-    return showInventoryNotice('❌ GIAO DỊCH KHÔNG ĐƯỢC GHI NHẬN', `${err.message || err}\n\nTồn kho và Nhật Ký trên màn hình chưa được cập nhật.`);
+    showInventoryNotice('❌ GIAO DỊCH KHÔNG ĐƯỢC GHI NHẬN', `${err.message || err}\n\nHệ thống không coi giao dịch là thành công.`);
+  } finally {
+    resetSaving();
   }
 }
 // ADMIN OPERATIONS
