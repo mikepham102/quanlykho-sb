@@ -94,6 +94,10 @@
     .audit-action.adjustment { background:#fef3c7; color:#a16207; }
     .audit-action.data_repair { background:var(--bg-opening); color:var(--text-opening); }
 
+    /* Nhật ký: tag tên món + nhóm nguyên liệu nổi bật, dễ quét trên mobile */
+    .audit-item-tag { display:inline-flex; align-items:center; max-width:100%; padding:5px 10px; border-radius:9px; background:#eff6ff; color:#075985; border:1px solid #bae6fd; font-size:15px; font-weight:850; line-height:1.25; box-shadow:0 1px 2px rgba(15,23,42,.05); }
+    .audit-item-group { display:inline-flex; align-items:center; padding:3px 8px; margin-left:6px; border-radius:999px; background:#f8fafc; color:#475569; border:1px solid #e2e8f0; font-size:10px; font-weight:800; vertical-align:middle; }
+
     /* Nhật ký đã chỉnh sửa: nổi bật toàn bộ dòng + ghi rõ nội dung thay đổi */
     .audit-row-edited { background:#fff7ed !important; border:1px solid #fdba74 !important; box-shadow:0 2px 8px rgba(234,88,12,.10); }
     .audit-edited-line { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-top:4px; font-size:12px; color:#9a3412; font-weight:800; }
@@ -271,6 +275,7 @@ let query = '';
 let rawGroup = 'Tất cả';
 let fgGroup = 'Tất cả';
 let auditType = 'Tất cả';
+let auditGroup = 'Tất cả';
 let fabiRecords = {};
 let inventorySearch = '';
 let inventoryTab = 'all';
@@ -2072,6 +2077,11 @@ function auditEditSummary(log) {
   return detail || `Số lượng hiện tại: ${fmt(log.qty)} ${log.unit}`;
 }
 
+function getAuditItemGroup(log) {
+  const item = (log?.tab === 'raw' ? raw : fg).find(x => x.id === log?.itemId);
+  return String(item?.group || item?.category || 'Khác').trim() || 'Khác';
+}
+
 function auditView() {
   const filters = [
     ['Tất cả', 'Tất cả'],
@@ -2083,30 +2093,48 @@ function auditView() {
     ['waste', 'Hủy món'],
     ['adjustment', 'Điều chỉnh tồn']
   ];
-  const list = getFilteredLogs().filter(l => auditType === 'Tất cả' || normalizeActionType(l) === auditType);
+  const groupSet = new Set();
+  raw.forEach(x => groupSet.add(String(x.group || 'Khác').trim() || 'Khác'));
+  fg.forEach(x => groupSet.add(String(x.category || 'Khác').trim() || 'Khác'));
+  const groups = ['Tất cả', ...Array.from(groupSet).filter(g => g !== 'Tất cả').sort((a,b) => a.localeCompare(b, 'vi'))];
+  const list = getFilteredLogs().filter(l => {
+    const typeOk = auditType === 'Tất cả' || normalizeActionType(l) === auditType;
+    const groupOk = auditGroup === 'Tất cả' || getAuditItemGroup(l) === auditGroup;
+    return typeOk && groupOk;
+  });
 
   return `
     ${dateFilterView()}
     <div class="filter-wrapper">
+      <div style="font-size:11px;font-weight:800;color:var(--text-muted);margin:0 0 6px 2px;text-transform:uppercase">Phân loại thao tác</div>
       <div class="filter-scroll">
         ${filters.map(([value, label]) => `<button class="filter-chip ${auditType === value ? 'active' : ''}" onclick="auditType='${value}';render()">${label}</button>`).join('')}
+      </div>
+      <div style="font-size:11px;font-weight:800;color:var(--text-muted);margin:10px 0 6px 2px;text-transform:uppercase">Nhóm nguyên liệu</div>
+      <div class="filter-scroll">
+        ${groups.map(g => `<button class="filter-chip ${auditGroup === g ? 'active' : ''}" onclick="auditGroup='${g}';render()">${g}</button>`).join('')}
       </div>
     </div>
     <div class="card-list">
       <div style="padding:14px;font-weight:700;background:#fff;border-radius:12px;border:1px solid var(--border-color);font-size:15px">📋 Lịch sử giao dịch Cloud</div>
       ${list.map(l => {
         const allowEdit = canEditLog(l);
+        const itemGroup = getAuditItemGroup(l);
         return `
         <div class="${l.editedAt ? 'audit-row-edited' : ''}" style="background:#fff;border-radius:12px;padding:12px 14px;border:1px solid var(--border-color)">
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px"><b>${l.user}</b> · ${l.time}</div>
-          <div style="font-size:14px;color:var(--text-main);margin-bottom:6px"><span class="audit-action ${auditActionClass(l)}">${auditActionLabel(l)}</span>: <b style="font-size:15px">${fmt(l.qty)} ${l.unit}</b> (${l.item})</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px"><b>${l.user}</b> · ${l.time}</div>
+          <div style="font-size:14px;color:var(--text-main);margin-bottom:7px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span class="audit-action ${auditActionClass(l)}">${auditActionLabel(l)}</span>
+            <span style="font-weight:800">${fmt(l.qty)} ${l.unit}</span>
+          </div>
+          <div style="margin-bottom:6px"><span class="audit-item-tag">${l.item}</span><span class="audit-item-group">${itemGroup}</span></div>
           ${l.editedAt ? `<div class="audit-edited-line"><span class="audit-change">→ ${auditEditSummary(l)}</span><span class="audit-edited-meta">✎ Đã sửa ${l.editedAt}</span></div>` : ''}
           <div style="display:flex;gap:12px;margin-top:${l.editedAt ? '7px' : '0'}">
             ${allowEdit ? `<button class="link-btn blue" onclick="editLog('${l.id}')">Sửa</button>` : ''}
             ${isOwnerRole() ? `<button class="link-btn red" onclick="deleteLog('${l.id}')">Xóa</button>` : ''}
           </div>
         </div>
-      `}).join('') || '<div class="empty-state">Không có nhật ký thuộc loại này.</div>'}
+      `}).join('') || '<div class="empty-state">Không có nhật ký phù hợp với bộ lọc.</div>'}
     </div>`;
 }
 
