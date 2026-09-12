@@ -286,6 +286,7 @@ let editLogId = null;
 let editingItemId = null;
 let tempDraftList = []; // Mảng chứa danh sách thao tác lưu tạm
 let transactionSaving = false; // Khóa giao dịch ngay khi bấm Xác nhận Lưu
+let inventorySaving = false; // Khóa kiểm kê để không ghi trùng log
 let orderingTab = 'raw';
 
 let accounts = [];
@@ -308,7 +309,7 @@ async function fetchInitialData() {
       supabaseClient.from('raw_items').select('*'),
       supabaseClient.from('fg_items').select('*'),
       supabaseClient.from('logs').select('*').order('timestamp', { ascending: false }).order('id', { ascending: false }),
-      supabaseClient.from('config').select('*').in('key', ['shop_location','fabi_reconcile','inventory_counts'])
+      supabaseClient.from('config').select('*').in('key', ['shop_location','fabi_reconcile'])
     ]);
 
     // Không được âm thầm dùng localStorage nếu Cloud trả lỗi.
@@ -357,11 +358,11 @@ async function fetchInitialData() {
       const cfg = Object.fromEntries(configRes.data.map(r => [r.key, r.value]));
       if (cfg.shop_location) shopLocation = cfg.shop_location;
       if (cfg.fabi_reconcile) fabiRecords = cfg.fabi_reconcile || {};
-      if (cfg.inventory_counts) inventoryCounts = cfg.inventory_counts || {};
+      // inventory_counts chỉ là dữ liệu nhập tạm trong màn hình kiểm kê; không dùng làm nguồn dữ liệu tồn kho.
     }
 
     try { fabiRecords = JSON.parse(localStorage.getItem('sb_fabi_reconcile') || JSON.stringify(fabiRecords || {})); } catch {}
-    try { inventoryCounts = JSON.parse(localStorage.getItem('sb_inventory_counts') || JSON.stringify(inventoryCounts || {})); } catch {}
+    // Không khôi phục bản nháp kiểm kê cũ từ localStorage. Kiểm kê chỉ được giữ trong phiên hiện tại cho đến khi xác nhận.
 
     // Nếu Safari khôi phục phiên của nhân viên, vẫn phải xác nhận vị trí trước khi cho vào hệ thống.
     if (currentUser && String(currentUser.role || '').toLowerCase() === 'staff' && sessionStorage.getItem(SESSION_LOCATION_KEY) !== '1') {
@@ -1904,12 +1905,10 @@ function reconcileView(dateKey = localDateKey()) {
   const totalFabi = Object.values(saved).reduce((s,n)=>s+Number(n||0),0);
   return `<h2 style="font-size:18px">📊 Đối chiếu Fabi</h2><div class="form-group" style="margin-top:10px"><label>Ngày đối chiếu</label><input id="fabiDate" type="date" value="${dateKey}" onchange="openModal(reconcileView(this.value))"></div><div class="tool-note">Nhập số <b>ly đã bán trên Fabi</b>. <b>Chưa tính chênh lệch với kho ở giai đoạn này</b> vì Fabi chỉ cho số ly bán, còn hệ thống phải dùng <b>định mức chuyển đổi/công thức món</b> để quy đổi nhiều nguyên liệu thành lượng thành phẩm/nguyên liệu tương ứng. Sau khi bạn cung cấp định mức, phần đối chiếu sẽ được hoàn thiện theo đúng công thức.</div><div class="tool-summary"><div class="tool-summary-box"><small>Mặt hàng đã nhập</small><b>${compared}/${fg.length}</b></div><div class="tool-summary-box"><small>Tổng ly Fabi</small><b>${fmt(totalFabi)}</b></div><div class="tool-summary-box"><small>Trạng thái</small><b style="font-size:12px">Chờ định mức</b></div></div><div>${rows || '<div class="empty-state">Chưa có thành phẩm.</div>'}</div><div class="modal-buttons"><button class="btn-cancel" onclick="closeModal()">Đóng</button><button class="btn-save" onclick="saveFabiReconcile()">💾 Lưu số liệu Fabi</button></div>`;
 }
-function saveInventoryCount() {
-  const date = document.getElementById('countDate')?.value || localDateKey();
-  const data = { ...(inventoryCounts[date] || {}) };
-  [...raw.map(x=>['raw',x]), ...fg.map(x=>['fg',x])].forEach(([tab,x])=>{ const el=document.getElementById('count_'+tab+'_'+x.id); if(!el) return; const key=tab+'|'+x.id; if(el.value===''){ delete data[key]; return; } const n=Number(el.value); if(Number.isFinite(n)&&n>=0) data[key]=n; });
-  inventoryCounts[date]=data; configSaveLocal('sb_inventory_counts',inventoryCounts);
-  saveConfigCloud('inventory_counts',inventoryCounts).then(()=>{ showSuccessToast('Đã lưu số liệu kiểm kê'); openModal(inventoryView(date)); }).catch(e=>alert('Đã lưu trên máy nhưng chưa đồng bộ Cloud: '+(e.message||e)));
+// Kiểm kê chỉ có MỘT luồng xác nhận: ghi log Cloud + cập nhật Ledger tức thì.
+// Không còn nút/luồng 'lưu số liệu kiểm kê' riêng chỉ ghi config mà không ghi logs.
+async function saveInventoryCount() {
+  return applyInventoryStocktake();
 }
 
 
@@ -1949,9 +1948,11 @@ function showInventoryNotice(title, message){
   return showInventoryConfirm(title, message).then(()=>true);
 }
 async function applyInventoryStocktake() {
+  if (inventorySaving) return;
   if (!currentUser) return showInventoryNotice('⚠️ Phiên đăng nhập', 'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.');
   if (!isOwnerRole()) return showInventoryNotice('⚠️ Không có quyền', 'Chỉ tài khoản Admin/Owner mới được thực hiện kiểm kê.');
 
+  inventorySaving = true;
   const date = document.getElementById('countDate')?.value || localDateKey();
   const saved = { ...(inventoryCounts[date] || {}) };
 
@@ -1974,6 +1975,7 @@ async function applyInventoryStocktake() {
   });
 
   if (!changes.length) {
+    inventorySaving = false;
     return showInventoryNotice('ℹ️ Chưa có chênh lệch', `Ngày kiểm kê: ${date}\n\nKhông có mặt hàng nào có chênh lệch so với tồn hệ thống.`);
   }
 
@@ -1986,10 +1988,19 @@ async function applyInventoryStocktake() {
     '🧾 XÁC NHẬN KIỂM KÊ',
     `Ngày kiểm kê: ${date}\nCó ${changes.length} mặt hàng có chênh lệch.\n\n${preview}${more}\n\nKiểm kê là ngoại lệ duy nhất được phép thay đổi Tồn hệ thống theo Tồn thực tế.\nHệ thống sẽ ghi Nhật Ký “Kiểm kê”.\n\nBạn có chắc chắn muốn xác nhận không?`
   );
-  if (!confirmed) return;
+  if (!confirmed) {
+    inventorySaving = false;
+    return;
+  }
 
   const payload = [];
-  const nowBase = getDayBoundaryMs(date, true) - Math.min(changes.length, 500);
+  // Kiểm kê hôm nay phải có timestamp thực tế để Tồn Cuối cập nhật NGAY.
+  // Nếu kiểm kê cho ngày đã qua, đặt timestamp ở cuối ngày đó để trở thành mốc tồn của ngày kế tiếp.
+  const todayKey = localDateKey();
+  const nowBase = date === todayKey
+    ? Date.now()
+    : getDayBoundaryMs(date, true) - Math.min(changes.length, 500);
+
   for (let i = 0; i < changes.length; i++) {
     const c = changes[i];
     const id = 'log_inv_' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '_' + i;
@@ -2007,7 +2018,7 @@ async function applyInventoryStocktake() {
       actiontype: 'stocktake',
       timestamp,
       datekey: date,
-      userid: currentUser.username || currentUser.id || '',
+      userid: currentUser.id || currentUser.username || '',
       user: `${currentUser.name} (${roleLabel(currentUser.role)})`,
       time: new Date(timestamp).toLocaleString('vi-VN'),
       editedat: null,
@@ -2019,15 +2030,15 @@ async function applyInventoryStocktake() {
     const { error: logError } = await supabaseClient.from('logs').insert(payload);
     if (logError) throw new Error(`Không thể ghi Nhật Ký kiểm kê Cloud: ${logError.message || logError}`);
 
-    inventoryCounts[date] = saved;
-    configSaveLocal('sb_inventory_counts', inventoryCounts);
-    await saveConfigCloud('inventory_counts', inventoryCounts);
+    // Log Cloud là nguồn sự thật. Không lưu lại bản nháp kiểm kê sau khi đã xác nhận.
+    delete inventoryCounts[date];
 
     const localLogs = payload.map(l => ({
       ...l,
       itemId: l.itemid,
       actionType: l.actiontype,
-      username: l.userid,
+      userId: l.userid,
+      username: currentUser.username || '',
       dateKey: l.datekey,
       editedAt: null,
       editedBy: null,
@@ -2040,8 +2051,10 @@ async function applyInventoryStocktake() {
 
     closeModal();
     render();
+    inventorySaving = false;
     showSuccessToast(`${changes.length} mặt hàng đã được kiểm kê`);
   } catch (err) {
+    inventorySaving = false;
     return showInventoryNotice('❌ KIỂM KÊ KHÔNG HOÀN TẤT', `${err.message || err}\n\nKhông có dữ liệu kiểm kê nào được coi là thành công.`);
   }
 }
@@ -2064,7 +2077,7 @@ function inventoryView(dateKey=localDateKey()){
   });
   const rows=filtered.map(([tab,x])=>{ const system=stockAtDate(tab,x,dateKey); const key=tab+'|'+x.id; const actual=saved[key]; const diff=actual==null?null:Number(actual)-system; const cls=diff===null?'':Math.abs(diff)<1e-9?'diff-zero':diff>0?'diff-plus':'diff-minus'; return `<div class="count-row"><div class="count-head"><div><div class="tool-name">${x.name}</div><div class="tool-unit">${tab==='raw'?'Kho Thô':'Thành phẩm'} · ${x.unit}</div></div><div style="width:100px"><input class="tool-input" id="count_${tab}_${x.id}" type="number" min="0" step="any" value="${actual==null?'':actual}" placeholder="Thực tế"></div></div><div class="tool-metrics"><div class="tool-metric"><span>Tồn hệ thống</span><b>${fmt(system)}</b></div><div class="tool-metric"><span>Thực tế</span><b>${actual==null?'—':fmt(actual)}</b></div><div class="tool-metric"><span>Chênh lệch</span><b class="${cls}">${diff===null?'—':(diff>0?'+':'')+fmt(diff)}</b></div></div></div>`; }).join('');
   const chip=(key,label)=>`<button class="filter-chip ${inventoryTab===key?'active':''}" onclick="inventoryTab='${key}';openModal(inventoryView('${dateKey}'))">${label}</button>`;
-  return `<h2 style="font-size:18px">🧾 Kiểm kê hàng hóa</h2><div class="form-group" style="margin-top:10px"><label>Ngày kiểm kê</label><input id="countDate" type="date" value="${dateKey}" onchange="openModal(inventoryView(this.value))"></div><div class="tool-note">Nhập <b>tồn thực tế</b> sau khi đếm/cân. Nếu có chênh lệch, <b>Kiểm kê</b> là ngoại lệ duy nhất được phép cập nhật Tồn hệ thống và ghi Nhật Ký kiểm kê.</div><div class="inventory-filter"><input class="search-box" style="margin-bottom:8px" id="inventorySearch" type="search" value="${String(inventorySearch||'').replace(/"/g,'&quot;')}" placeholder="🔎 Tìm tên hàng hóa..." oninput="inventorySearch=this.value;openModal(inventoryView('${dateKey}'))"><div class="filter-scroll" style="margin-bottom:10px">${chip('all','Tất cả')}${chip('raw_hongphat','HỒNG PHÁT')}${chip('raw_tnt','TNT')}${chip('raw_baobì','BAO BÌ')}${chip('raw_other','Khác (Kho Thô)')}${chip('fg_drink','Đồ uống')}${chip('fg_topping','Topping')}${chip('fg_other','Khác (Thành phẩm)')}</div></div><div style="font-size:11px;color:var(--text-muted);margin:0 0 8px">Hiển thị ${filtered.length}/${all.length} mặt hàng</div><div>${rows || '<div class="empty-state">Không tìm thấy hàng hóa phù hợp.</div>'}</div><div class="inventory-actions"><button class="inventory-close" onclick="closeModal()">Đóng</button><button class="inventory-save" onclick="saveInventoryCount()">✓ Xác nhận kiểm kê</button>${isOwnerRole()?'<button type="button" class="inventory-adjust" onclick="window.applyInventoryStocktake(); return false;">🧾 Xác nhận kiểm kê</button>':''}</div>`;
+  return `<h2 style="font-size:18px">🧾 Kiểm kê hàng hóa</h2><div class="form-group" style="margin-top:10px"><label>Ngày kiểm kê</label><input id="countDate" type="date" value="${dateKey}" onchange="openModal(inventoryView(this.value))"></div><div class="tool-note">Nhập <b>tồn thực tế</b> sau khi đếm/cân. Nếu có chênh lệch, <b>Kiểm kê</b> là ngoại lệ duy nhất được phép cập nhật Tồn hệ thống và ghi Nhật Ký kiểm kê.</div><div class="inventory-filter"><input class="search-box" style="margin-bottom:8px" id="inventorySearch" type="search" value="${String(inventorySearch||'').replace(/"/g,'&quot;')}" placeholder="🔎 Tìm tên hàng hóa..." oninput="inventorySearch=this.value;openModal(inventoryView('${dateKey}'))"><div class="filter-scroll" style="margin-bottom:10px">${chip('all','Tất cả')}${chip('raw_hongphat','HỒNG PHÁT')}${chip('raw_tnt','TNT')}${chip('raw_baobì','BAO BÌ')}${chip('raw_other','Khác (Kho Thô)')}${chip('fg_drink','Đồ uống')}${chip('fg_topping','Topping')}${chip('fg_other','Khác (Thành phẩm)')}</div></div><div style="font-size:11px;color:var(--text-muted);margin:0 0 8px">Hiển thị ${filtered.length}/${all.length} mặt hàng</div><div>${rows || '<div class="empty-state">Không tìm thấy hàng hóa phù hợp.</div>'}</div><div class="inventory-actions"><button class="inventory-close" onclick="closeModal()">Đóng</button>${isOwnerRole()?'<button type="button" class="inventory-adjust" onclick="window.applyInventoryStocktake(); return false;">✓ Xác nhận kiểm kê</button>':''}</div>`;
 }
 // ===== THỨ TỰ HIỂN THỊ MẶT HÀNG =====
 function itemSortValue(x, fallbackIndex=0) {
