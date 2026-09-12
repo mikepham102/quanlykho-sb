@@ -311,6 +311,15 @@ async function fetchInitialData() {
       supabaseClient.from('config').select('*').in('key', ['shop_location','fabi_reconcile','inventory_counts'])
     ]);
 
+    // Không được âm thầm dùng localStorage nếu Cloud trả lỗi.
+    // Nhật Ký là nguồn sự thật của Ledger; nếu đọc logs lỗi thì phải báo lỗi rõ ràng,
+    // không được render dữ liệu cũ như thể đó là dữ liệu Cloud mới nhất.
+    if (accRes.error) throw new Error(`Không thể tải tài khoản từ Cloud: ${accRes.error.message || accRes.error}`);
+    if (rawRes.error) throw new Error(`Không thể tải Kho Thô từ Cloud: ${rawRes.error.message || rawRes.error}`);
+    if (fgRes.error) throw new Error(`Không thể tải Thành phẩm từ Cloud: ${fgRes.error.message || fgRes.error}`);
+    if (logRes.error) throw new Error(`Không thể tải Nhật Ký từ Cloud: ${logRes.error.message || logRes.error}`);
+    if (configRes.error) throw new Error(`Không thể tải cấu hình từ Cloud: ${configRes.error.message || configRes.error}`);
+
     if (accRes.data) accounts = accRes.data;
     if (rawRes.data) raw = rawRes.data;
     if (fgRes.data) fg = fgRes.data;
@@ -336,7 +345,6 @@ async function fetchInitialData() {
         dateKey: l.datekey || '',
         editedAt: l.editedat || null,
         editedBy: l.editedby || null,
-        editDetail: l.editdetail || '',
         time: l.time || ''
       })).sort((a,b) => (Number(b.timestamp)||0) - (Number(a.timestamp)||0) || String(b.id).localeCompare(String(a.id)));
       localStorage.setItem('awan_logs_backup', JSON.stringify(logs));
@@ -363,9 +371,18 @@ async function fetchInitialData() {
     render();
   } catch (err) {
     console.error("Lỗi nạp dữ liệu Supabase:", err);
-    const backup = localStorage.getItem('awan_logs_backup');
-    if (backup) logs = JSON.parse(backup);
+    // Không dùng backup Nhật Ký để giả lập dữ liệu Cloud.
+    // Nếu Cloud không tải được Ledger, phải báo rõ để tránh hiển thị tồn sai.
+    logs = [];
     render();
+    if (currentUser) {
+      showInventoryNotice(
+        '❌ KHÔNG TẢI ĐƯỢC DỮ LIỆU CLOUD',
+        `${err?.message || err}
+
+Hệ thống đã dừng việc dùng Nhật Ký cũ trên máy để tránh tính tồn sai. Vui lòng kiểm tra kết nối / quyền Database rồi tải lại.`
+      );
+    }
   }
 }
 
@@ -1074,7 +1091,7 @@ async function confirmAllDrafts() {
       after: Number(l.after || 0), actionType: l.actiontype, user: l.user,
       username: l.userid || '', timestamp: Number(l.timestamp || 0),
       dateKey: l.datekey || '', editedAt: l.editedat || null,
-      editedBy: l.editedby || null, editDetail: l.editdetail || '', time: l.time || ''
+      editedBy: l.editedby || null, time: l.time || ''
     }));
 
     // Tất cả validation + before/after chạy trên Ledger Cloud mới nhất.
@@ -1174,12 +1191,11 @@ async function confirmAllDrafts() {
         actiontype: p.draft.type,
         timestamp,
         datekey: localDateKey(),
-        userid: currentUser.id,
+        userid: currentUser.id || currentUser.username || '',
         user: userName,
         time: timeNow,
         editedat: null,
-        editedby: null,
-        editdetail: null
+        editedby: null
       });
     }
 
@@ -1724,7 +1740,6 @@ async function saveLogEdit() {
       actiontype: normalizeActionType(l),
       editedat: editedAt,
       editedby: editedBy,
-      editdetail: editDetail
     }).eq('id', l.id);
     if (logError) {
       await supabaseClient.from(table).upsert(originalItem);
@@ -1845,7 +1860,6 @@ async function deleteLog(id) {
       time: l.time || '',
       editedat: l.editedAt || null,
       editedby: l.editedBy || null,
-      editdetail: l.editDetail || null
     });
     Object.assign(x, oldItem);
     const restoreText = restoreError ? `\nKhôi phục nhật ký cũng lỗi: ${restoreError.message}` : '';
