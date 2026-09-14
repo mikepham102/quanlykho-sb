@@ -1714,69 +1714,95 @@ function ledgerStock(tab, state) {
 
 function simulateItemLedger(tab, item, overrideLogId = null, overrideQty = null, deletedLogId = null) {
   const itemLogs = logs
-    .map((l, idx) => ({ l, idx }))
+    .map((l, idx) => ({ l, idx, ts: logTimestamp(l, idx) }))
     .filter(o => logBelongsToItem(o.l, tab, item) && o.l.id !== deletedLogId)
-    .sort((a,b) => logTimestamp(a.l,a.idx) - logTimestamp(b.l,b.idx));
+    .sort((a,b) => a.ts - b.ts || a.idx - b.idx);
 
-  const state = {
-    opening: Math.max(0, Number(item.opening || 0)),
-    imported: 0, exported: 0,
-    production: 0, sales: 0, returned: 0, waste: 0
-  };
-  const results = [];
-  let stock = ledgerStock(tab, state);
+  // Ledger mô phỏng phải dùng ĐÚNG cùng một quy tắc với Ledger hiển thị:
+  // lấy Kiểm kê gần nhất làm mốc gốc, sau đó chạy tuần tự từng giao dịch.
+  // Khi sửa một log, log cũ được thay bằng số mới ngay tại đúng vị trí thời gian;
+  // tuyệt đối không lấy tồn hiện tại rồi trừ/cộng lại số mới.
+  let stock = Number(item?.opening || 0);
+  if (!Number.isFinite(stock) || stock < 0) stock = 0;
 
-  if (stock < -1e-9) {
-    return { ok:false, message:`Tồn đầu của ${item.name} đang âm. Vui lòng kiểm tra lại dữ liệu gốc.` };
+  // Tìm mốc kiểm kê cuối cùng. Các giao dịch trước mốc này không còn ảnh hưởng
+  // tới tồn hiện tại, đúng với calculateStockFromLogs().
+  let startIndex = 0;
+  for (let i = itemLogs.length - 1; i >= 0; i--) {
+    const l = itemLogs[i].l;
+    if (normalizeActionType(l) !== 'stocktake') continue;
+    const target = Number(l.after);
+    if (!Number.isFinite(target) || target < 0) continue;
+    stock = target;
+    startIndex = i + 1;
+    break;
   }
 
-  for (const o of itemLogs) {
-    const l = o.l;
+  const state = {
+    opening: stock,
+    imported: 0, exported: 0, production: 0, sales: 0, returned: 0, waste: 0
+  };
+  const results = [];
+
+  for (let i = startIndex; i < itemLogs.length; i++) {
+    const l = itemLogs[i].l;
     const type = normalizeActionType(l);
-    const qty = l.id === overrideLogId ? Number(overrideQty) : Number(l.qty);
 
     if (type === 'data_repair') continue;
-    // Khi sửa một giao dịch thường về 0, vẫn giữ nhật ký để tạo lịch sử rõ ràng,
-    // nhưng giao dịch không còn làm tăng/giảm tồn. Ledger vẫn được mô phỏng toàn bộ.
-    const isZeroOverride = l.id === overrideLogId && qty === 0 && type !== 'stocktake';
-    if (!type || !Number.isFinite(qty) || (qty <= 0 && !isZeroOverride)) {
-      if (type === 'stocktake') {
-        const target = Number(l.after);
-        if (Number.isFinite(target) && target >= 0) {
-          const before = stock;
-          stock = target;
-          results.push({ id:l.id, before, after:stock });
-          continue;
-        }
-      }
-      return { ok:false, message:`Nhật ký "${l.action}" của ${item.name} có số lượng không hợp lệ.` };
-    }
 
-    const before = stock;
+    const isOverride = l.id === overrideLogId;
+    const qty = isOverride ? Number(overrideQty) : Number(l.qty);
 
+    // Kiểm kê không được sửa qua màn hình này, nhưng vẫn phải được mô phỏng
+    // như một mốc tồn thực tế nếu nó nằm trong lịch sử.
     if (type === 'stocktake') {
       const target = Number(l.after);
       if (!Number.isFinite(target) || target < 0) {
         return { ok:false, message:`Nhật ký kiểm kê của ${item.name} có Tồn thực tế không hợp lệ.` };
       }
+      const before = stock;
       stock = target;
+      results.push({ id:l.id, before, after:stock });
+      continue;
+    }
+
+    if (!type || !Number.isFinite(qty) || qty < 0) {
+      return { ok:false, message:`Nhật ký "${l.action}" của ${item.name} có số lượng không hợp lệ.` };
+    }
+
+    const before = stock;
+    const decreasing = tab === 'raw' ? type === 'export' : ['sales','waste'].includes(type);
+
+    // qty = 0 chỉ được phép đối với chính log đang sửa. Nó vẫn đi qua Ledger
+    // như một giao dịch hợp lệ để kiểm tra toàn bộ chuỗi phía sau.
+    if (decreasing && qty > before + 1e-9) {
+      return {
+        ok:false,
+        message:`Không thể sửa vì "${l.action}" ${fmt(qty)} ${item.unit} làm tồn kho âm. Tồn khả dụng tại thời điểm đó chỉ ${fmt(Math.max(0,before))} ${item.unit}.`
+      };
+    }
+
+    // Tính trực tiếp từ stock hiện tại thay vì dựng lại từ các tổng trên item.
+    // Đây là điểm quan trọng giúp sửa 10 → 8 thành 0 + 10 - 8 = 2.
+    if (tab === 'raw') {
+      if (type === 'import') { stock += qty; state.imported += qty; }
+      else if (type === 'export') { stock -= qty; state.exported += qty; }
+      else return { ok:false, message:`Không xác định được loại giao dịch của nhật ký "${l.action}".` };
     } else {
-      const decreasing = tab === 'raw' ? type === 'export' : ['sales','waste'].includes(type);
-      if (decreasing && qty > before + 1e-9) {
-        return {
-          ok:false,
-          message:`Không thể ghi vì "${l.action}" ${fmt(qty)} ${item.unit} làm tồn kho âm. Tồn khả dụng tại thời điểm đó chỉ ${fmt(Math.max(0,before))} ${item.unit}.`
-        };
-      }
-      if (!applyLedgerMovement(tab, state, type, qty)) {
-        return { ok:false, message:`Không xác định được loại giao dịch của nhật ký "${l.action}".` };
-      }
-      stock = ledgerStock(tab, state);
+      if (type === 'production') { stock += qty; state.production += qty; }
+      else if (type === 'sales') { stock -= qty; state.sales += qty; }
+      else if (type === 'return') { stock += qty; state.returned += qty; }
+      else if (type === 'waste') { stock -= qty; state.waste += qty; }
+      else return { ok:false, message:`Không xác định được loại giao dịch của nhật ký "${l.action}".` };
     }
 
     if (stock < -1e-9) {
-      return { ok:false, message:`Giao dịch "${l.action}" làm tồn kho âm ${fmt(stock)} ${item.unit}.` };
+      return {
+        ok:false,
+        message:`Không thể sửa vì "${l.action}" ${fmt(qty)} ${item.unit} làm tồn kho âm. Tồn khả dụng tại thời điểm đó chỉ ${fmt(Math.max(0,before))} ${item.unit}.`
+      };
     }
+
     results.push({ id:l.id, before, after:stock });
   }
 
