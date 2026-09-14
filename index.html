@@ -118,6 +118,12 @@
     .audit-qty { color:#0f172a; font-size:16px; font-weight:900; white-space:nowrap; }
     .audit-qty .unit { color:#475569; font-size:12px; font-weight:850; }
     .audit-divider { height:1px; background:#edf2f7; margin:7px 0; }
+    .audit-search-box { display:flex; align-items:stretch; gap:8px; padding:10px; margin-bottom:2px; background:#fff; border:1px solid #d8e7f0; border-radius:14px; box-shadow:0 2px 8px rgba(15,23,42,.05); }
+    .audit-search-input { flex:1; min-width:0; height:42px; padding:0 12px; border:1.5px solid #cbd5e1; border-radius:10px; background:#f8fafc; color:#102a43; font-size:14px; font-weight:700; outline:none; box-sizing:border-box; }
+    .audit-search-input:focus { border-color:#0284c7; background:#fff; box-shadow:0 0 0 3px rgba(2,132,199,.10); }
+    .audit-search-input::placeholder { color:#94a3b8; font-weight:600; }
+    .audit-search-btn { flex:0 0 auto; height:42px; padding:0 14px; border:0; border-radius:10px; background:linear-gradient(135deg,#0284c7,#0f766e); color:#fff; font-size:13px; font-weight:900; cursor:pointer; box-shadow:0 2px 6px rgba(2,132,199,.18); }
+    .audit-search-btn:active { transform:scale(.98); }
 
 
     /* Nav */
@@ -411,6 +417,8 @@ let rawGroup = 'Tất cả';
 let fgGroup = 'Tất cả';
 let auditType = 'Tất cả';
 let auditGroup = 'Tất cả';
+let auditSearchInput = '';
+let auditSearch = '';
 let fabiRecords = {};
 let inventorySearch = '';
 let inventoryTab = 'all';
@@ -1728,7 +1736,10 @@ function simulateItemLedger(tab, item, overrideLogId = null, overrideQty = null,
     const qty = l.id === overrideLogId ? Number(overrideQty) : Number(l.qty);
 
     if (type === 'data_repair') continue;
-    if (!type || !Number.isFinite(qty) || qty <= 0) {
+    // Khi sửa một giao dịch thường về 0, vẫn giữ nhật ký để tạo lịch sử rõ ràng,
+    // nhưng giao dịch không còn làm tăng/giảm tồn. Ledger vẫn được mô phỏng toàn bộ.
+    const isZeroOverride = l.id === overrideLogId && qty === 0 && type !== 'stocktake';
+    if (!type || !Number.isFinite(qty) || (qty <= 0 && !isZeroOverride)) {
       if (type === 'stocktake') {
         const target = Number(l.after);
         if (Number.isFinite(target) && target >= 0) {
@@ -1830,7 +1841,7 @@ function editLog(id) {
   openModal(`
     <h2 style="font-size:18px">✏ Sửa nhật ký giao dịch</h2>
     <div class="notice-box" style="margin-top:10px">${l.action} - <b>${l.item}</b><br>Tạo bởi: <b>${l.user}</b><br>Số lượng hiện tại: <b style="font-size:16px">${fmt(l.qty)} ${l.unit}</b></div>
-    <div class="form-group"><label>Số lượng mới</label><input id="editAmount" type="number" min="0.001" step="any" value="${l.qty}"></div>
+    <div class="form-group"><label>Số lượng mới</label><input id="editAmount" type="number" min="0" step="any" value="${l.qty}"></div>
     <div class="modal-buttons"><button class="btn-cancel" onclick="closeModal()">Hủy</button><button class="btn-save" onclick="saveLogEdit()">Lưu thay đổi</button></div>
   `);
 }
@@ -1838,7 +1849,7 @@ function editLog(id) {
 async function saveLogEdit() {
   const l = logs.find(x => x.id === editLogId);
   const n = Number(document.getElementById('editAmount')?.value);
-  if (!l || !(n > 0)) return showInventoryNotice('⚠️ Số lượng không hợp lệ', 'Số lượng mới phải lớn hơn 0. Dữ liệu chưa được lưu.');
+  if (!l || !Number.isFinite(n) || n < 0) return showInventoryNotice('⚠️ Số lượng không hợp lệ', 'Số lượng mới phải từ 0 trở lên. Dữ liệu chưa được lưu.');
   if (!canEditLog(l)) return showInventoryNotice('⚠️ Không có quyền', 'Bạn không có quyền sửa nhật ký này.');
   if (normalizeActionType(l) === 'stocktake') {
     return showInventoryNotice('🧾 Nhật ký kiểm kê', 'Nhật ký kiểm kê không sửa trực tiếp. Nếu nhập sai, Owner/Admin có thể xóa nhật ký và thực hiện kiểm kê lại.');
@@ -2541,6 +2552,11 @@ function getAuditItemGroup(log) {
   return String(item?.group || item?.category || 'Khác').trim() || 'Khác';
 }
 
+function applyAuditSearch() {
+  auditSearch = String(auditSearchInput || '').trim();
+  render();
+}
+
 function auditView() {
   const filters = [
     ['Tất cả', 'Tất cả'],
@@ -2558,7 +2574,11 @@ function auditView() {
   const list = getFilteredLogs().filter(l => {
     const typeOk = auditType === 'Tất cả' || normalizeActionType(l) === auditType;
     const groupOk = auditGroup === 'Tất cả' || getAuditItemGroup(l) === auditGroup;
-    return typeOk && groupOk;
+    const q = String(auditSearch || '').trim().toLocaleLowerCase('vi-VN');
+    const searchOk = !q || [
+      l.user, l.item, getAuditItemGroup(l), auditActionLabel(l), l.unit
+    ].some(v => String(v || '').toLocaleLowerCase('vi-VN').includes(q));
+    return typeOk && groupOk && searchOk;
   });
 
   return `
@@ -2574,7 +2594,10 @@ function auditView() {
       </div>
     </div>
     <div class="card-list">
-      <div style="padding:14px;font-weight:700;background:#fff;border-radius:12px;border:1px solid var(--border-color);font-size:15px">📋 Lịch sử giao dịch Cloud</div>
+      <div class="audit-search-box">
+        <input id="auditSearchInput" class="audit-search-input" type="search" value="${tableEsc(auditSearchInput)}" placeholder="Tìm nhân viên, nguyên liệu, nhóm..." oninput="auditSearchInput=this.value" onkeydown="if(event.key==='Enter'){applyAuditSearch();}">
+        <button class="audit-search-btn" type="button" onclick="applyAuditSearch()">🔎 Tìm kiếm</button>
+      </div>
       ${list.map(l => {
         const allowEdit = canEditLog(l);
         const itemGroup = getAuditItemGroup(l);
