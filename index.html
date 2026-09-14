@@ -102,6 +102,23 @@
     .audit-edited-line { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-top:4px; font-size:12px; color:#9a3412; font-weight:800; }
     .audit-change { color:#9a3412; }
     .audit-edited-meta { margin-left:auto; white-space:nowrap; color:#c2410c; }
+    /* Nhật Ký — thẻ giao dịch 2 bên, rõ người / mặt hàng / trạng thái */
+    .audit-transaction-card { background:#fff; border-radius:16px; padding:13px 14px; border:1px solid #d8e7f0; box-shadow:0 3px 12px rgba(15,23,42,.06); }
+    .audit-topline { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
+    .audit-employee { color:#f8fafc; background:linear-gradient(135deg,#0f3d5e,#075985); padding:7px 11px; border-radius:10px; font-size:13px; font-weight:900; line-height:1.15; box-shadow:0 2px 5px rgba(7,89,133,.18); }
+    .audit-time { color:#64748b; font-size:16px; font-weight:800; white-space:nowrap; }
+    .audit-detail-row { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:28px; }
+    .audit-item-name { min-width:0; flex:1; color:#102a43; font-size:13px; font-weight:850; line-height:1.25; }
+    .audit-status { flex:0 0 auto; font-size:14px; font-weight:900; padding:5px 9px; border-radius:9px; line-height:1.1; white-space:nowrap; }
+    .audit-status.import,.audit-status.production { background:#dcfce7; color:#166534; border:1px solid #86efac; }
+    .audit-status.export,.audit-status.sales,.audit-status.waste { background:#dbeafe; color:#075985; border:1px solid #7dd3fc; }
+    .audit-status.return { background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }
+    .audit-status.stocktake,.audit-status.data_repair { background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; }
+    .audit-group-name { color:#991b1b; font-size:16px; font-weight:850; }
+    .audit-qty { color:#0f172a; font-size:16px; font-weight:900; white-space:nowrap; }
+    .audit-qty .unit { color:#475569; font-size:12px; font-weight:850; }
+    .audit-divider { height:1px; background:#edf2f7; margin:7px 0; }
+
 
     /* Nav */
     .bottom-nav {
@@ -2562,15 +2579,22 @@ function auditView() {
         const allowEdit = canEditLog(l);
         const itemGroup = getAuditItemGroup(l);
         return `
-        <div class="${l.editedAt ? 'audit-row-edited' : ''}" style="background:#fff;border-radius:12px;padding:12px 14px;border:1px solid var(--border-color)">
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px"><b>${l.user}</b> · ${l.time}</div>
-          <div style="font-size:14px;color:var(--text-main);margin-bottom:7px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            <span class="audit-action ${auditActionClass(l)}">${auditActionLabel(l)}</span>
-            <span style="font-weight:800">${fmt(l.qty)} ${l.unit}</span>
+        <div class="audit-transaction-card ${l.editedAt ? 'audit-row-edited' : ''}">
+          <div class="audit-topline">
+            <div class="audit-employee">${l.user}</div>
+            <div class="audit-time">${l.time}</div>
           </div>
-          <div style="margin-bottom:6px"><span class="audit-item-tag">${l.item}</span><span class="audit-item-group">${itemGroup}</span></div>
+          <div class="audit-detail-row">
+            <div class="audit-item-name">${l.item}</div>
+            <span class="audit-status ${auditActionClass(l)}">${auditActionLabel(l)}</span>
+          </div>
+          <div class="audit-divider"></div>
+          <div class="audit-detail-row">
+            <div class="audit-group-name">${itemGroup}</div>
+            <div class="audit-qty">${fmt(l.qty)} <span class="unit">${l.unit}</span></div>
+          </div>
           ${l.editedAt ? `<div class="audit-edited-line"><span class="audit-change">→ ${auditEditSummary(l)}</span><span class="audit-edited-meta">✎ Đã sửa ${l.editedAt}</span></div>` : ''}
-          <div style="display:flex;gap:12px;margin-top:${l.editedAt ? '7px' : '0'}">
+          <div style="display:flex;gap:12px;margin-top:${l.editedAt ? '7px' : '9px'}">
             ${allowEdit ? `<button class="link-btn blue" onclick="editLog('${l.id}')">Sửa</button>` : ''}
             ${isOwnerRole() ? `<button class="link-btn red" onclick="deleteLog('${l.id}')">Xóa</button>` : ''}
           </div>
