@@ -219,7 +219,66 @@
     /* CSS cho danh sách Lưu tạm */
     .temp-list-box { background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 10px; margin-top: 14px; }
     .temp-item-row { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-color); margin-top: 6px; font-size: 13px; }
-  \n.ordering-sheet{padding-bottom:6px}.ordering-tabs{display:flex;gap:8px;overflow-x:auto;margin:8px 0 12px}.ordering-list{max-height:55vh;overflow-y:auto;border:1px solid var(--border-color);border-radius:12px;background:#fff}.ordering-row{display:flex;align-items:center;gap:10px;padding:12px;border-bottom:1px solid #eee;background:#fff;cursor:grab;touch-action:none}.ordering-row:last-child{border-bottom:0}.ordering-row.dragging{opacity:.45}.drag-handle{font-size:20px;color:var(--text-muted);width:24px;text-align:center}.ordering-number{font-weight:800;color:var(--text-muted);width:22px;text-align:center}.ordering-name{font-weight:700;flex:1}.ordering-name small{display:block;font-size:11px;color:var(--text-muted);font-weight:500;margin-top:2px}\n</style>
+  \n.ordering-sheet{padding-bottom:6px}.ordering-tabs{display:flex;gap:8px;overflow-x:auto;margin:8px 0 12px}.ordering-list{max-height:55vh;overflow-y:auto;border:1px solid var(--border-color);border-radius:12px;background:#fff}.ordering-row{display:flex;align-items:center;gap:10px;padding:12px;border-bottom:1px solid #eee;background:#fff;cursor:grab;touch-action:none}.ordering-row:last-child{border-bottom:0}.ordering-row.dragging{opacity:.45}.drag-handle{font-size:20px;color:var(--text-muted);width:24px;text-align:center}.ordering-number{font-weight:800;color:var(--text-muted);width:22px;text-align:center}.ordering-name{font-weight:700;flex:1}.ordering-name small{display:block;font-size:11px;color:var(--text-muted);font-weight:500;margin-top:2px}\n
+    .report-data{
+  width:100%;
+  min-width:58px;
+  height:38px;
+  border:2px solid #94a3b8;
+  border-radius:8px;
+  background:#ffffff;
+  color:#0f172a;
+  font-size:15px;
+  font-weight:900;
+  cursor:default;
+  padding:1px 3px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  line-height:1.05;
+  box-sizing:border-box;
+  opacity:1;
+  box-shadow:inset 0 0 0 1px rgba(15,23,42,.04);
+}
+.report-data.report-plus{
+  color:#166534;
+  background:#dcfce7;
+  border-color:#16a34a;
+}
+.report-data.report-minus{
+  color:#075985;
+  background:#dbeafe;
+  border-color:#0284c7;
+}
+.report-data.report-neutral{
+  color:#334155;
+  background:#f1f5f9;
+  border-color:#94a3b8;
+}
+.report-data.has-data{
+  font-size:15px;
+  font-weight:900;
+  opacity:1;
+}
+.report-data.has-data.report-plus{
+  color:#14532d;
+  background:#bbf7d0;
+  border-color:#15803d;
+}
+.report-data.has-data.report-minus{
+  color:#0c4a6e;
+  background:#bfdbfe;
+  border-color:#0369a1;
+}
+.report-data.has-data.report-neutral{
+  color:#1e293b;
+  background:#e2e8f0;
+  border-color:#64748b;
+}
+.report-data:not(.has-data){
+  opacity:1;
+}
+</style>
 
 <script>
   // Hong/Quản Lý Kho SB - cache/version bootstrap for iPhone Home Screen WebApp
@@ -298,8 +357,9 @@
 .entry-table tr.data-row td:first-child{box-shadow:4px 0 7px rgba(15,23,42,.07)}
 .entry-table tr.group-row td{height:38px;background:#eef6fb;border-bottom:1px solid #cbdce8}.entry-table tr.group-row td:first-child{z-index:30;background:#dff2fb;color:#075985;font-size:12px;font-weight:900;box-shadow:4px 0 7px rgba(15,23,42,.06)}
 .entry-table tr.group-row td:not(:first-child){background:#eef6fb}.group-label{display:flex;align-items:center;gap:4px}.group-label .group-dot{width:6px;height:6px;border-radius:50%;background:#0284c7;flex:none}
-.item-cell-name{font-weight:800;font-size:12px;line-height:1.22;color:#042263;word-break:break-word}.item-cell-unit{font-size:9px;color:#8f0128;margin-top:2px;font-weight:800}
-.entry-input{width:100%;height:34px;border:1.5px solid #d7e0ea;border-radius:7px;background:#f8fafc;text-align:center;font-size:12px;font-weight:800;color:#0f172a;outline:none;-webkit-appearance:none;padding:2px}.entry-input:focus{border-color:#0284c7;background:#e0f2fe;box-shadow:0 0 0 2px rgba(2,132,199,.13)}.entry-input.changed{background:#e0f2fe;border-color:#0284c7;color:#075985}.entry-input[readonly]{background:#f1f5f9;color:#475569;border-color:#e2e8f0}.stock-static{display:flex;align-items:center;justify-content:center;color:#036b27;font-weight:900;font-size:14px;line-height:1}
+.item-cell-name{font-weight:800;font-size:10px;line-height:1.12;color:#172033;word-break:break-word}.item-cell-unit{font-size:8px;color:#64748b;margin-top:2px;font-weight:600}
+.entry-input{width:100%;height:34px;border:1.5px solid #d7e0ea;border-radius:7px;background:#f8fafc;text-align:center;font-size:12px;font-weight:800;color:#0f172a;outline:none;-webkit-appearance:none;padding:2px}.entry-input:focus{border-color:#0284c7;background:#e0f2fe;box-shadow:0 0 0 2px rgba(2,132,199,.13)}.entry-input.changed{background:#e0f2fe;border-color:#0284c7;color:#075985}.entry-input[readonly]{background:#f1f5f9;color:#475569;border-color:#e2e8f0}.live-entry{width:100%;min-width:58px;height:38px;border:1.5px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#0f172a;font-size:14px;font-weight:900;cursor:pointer;padding:1px 3px;display:flex;align-items:center;justify-content:center;gap:2px;flex-direction:column;line-height:1.05}.live-entry.has-data{background:#e0f2fe;border-color:#0284c7;color:#075985}.live-entry.pending{box-shadow:0 0 0 2px rgba(2,132,199,.13)}.live-entry small{font-size:8px;font-weight:700;color:#64748b;line-height:1}.live-entry.has-data small{color:#0369a1}.live-entry:disabled{cursor:not-allowed;opacity:.7}
+.stock-static{height:34px;display:flex;align-items:center;justify-content:center;border-radius:7px;background:#e0f2fe;color:#0284c7;font-weight:900;font-size:13px;line-height:1}
 .entry-save{width:100%;height:34px;border:0;border-radius:7px;background:#cbd5e1;color:#64748b;font-size:9px;font-weight:900;cursor:not-allowed;opacity:.8;padding:0 2px}.entry-save.ready{background:#0284c7;color:#fff;cursor:pointer;opacity:1;box-shadow:0 3px 8px rgba(2,132,199,.25)}
 .entry-help{font-size:11px;color:#64748b;line-height:1.45;margin:9px 2px 12px}.table-empty{padding:24px 14px;text-align:center;color:#64748b}
 /* Khi toàn bộ cột vừa màn hình, JS sẽ giãn các cột dữ liệu để tận dụng hết chiều ngang. Khi không vừa, cột tên vẫn cố định và bảng cho phép vuốt ngang. */
@@ -2280,7 +2340,58 @@ function setTableDraft(tab,id,type,value,el){ const key=tableDraftKey(tab,id); i
 function clearTableDraft(tab,id){ delete tableDrafts[tableDraftKey(tab,id)]; }
 function tableDraftHasData(tab,id){ const d=tableDrafts[tableDraftKey(tab,id)]||{}; return Object.values(d).some(v=>Number(v)>0); }
 function tableEsc(v){ return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-function tableCellInput(tab,item,type,disabled=false){ const key=tableDraftKey(tab,item.id),v=Number(tableDrafts[key]?.[type]||0); return `<input class="entry-input ${v>0?'changed':''}" inputmode="decimal" type="number" min="0" step="any" value="${v||''}" placeholder="0" ${disabled?'disabled':''} oninput="setTableDraft('${tab}','${tableEsc(item.id)}','${type}',this.value,this)" onclick="this.select()">`; }
+function tableReportQty(tab,item,type){
+  if(!isDateFilterActive()) return null;
+  const period=getLogsInRange(tab,item,dateFilterStart,dateFilterEnd);
+  const wanted=tab==='raw' ? type : type;
+  let total=0;
+  for(const entry of period){
+    const l=entry.l, actionType=normalizeActionType(l);
+    if(actionType===wanted) total += Number(l.qty||0);
+  }
+  return total;
+}
+function tableReportCell(tab,item,type){
+  const qty=tableReportQty(tab,item,type);
+  const positive=Number(qty||0)>0;
+  const cls=type==='import'||type==='production'||type==='return'?'report-plus':(type==='export'||type==='sales'||type==='waste'?'report-minus':'report-neutral');
+  return `<div class="report-data ${cls} ${positive?'has-data':''}">${positive?fmt(qty):'0'}</div>`;
+}
+function tableLiveActualQty(tab,item,type){
+  if(tab==='raw'){
+    const s=getCurrentDayRawStats(item);
+    return Number(type==='import'?s.imported:s.exported)||0;
+  }
+  const s=getCurrentDayFGStats(item);
+  return Number(type==='production'?s.production:type==='sales'?s.sales:type==='return'?s.returned:s.waste)||0;
+}
+function tableLiveQty(tab,item,type){
+  const key=tableDraftKey(tab,item.id),pending=Number(tableDrafts[key]?.[type]||0),actual=tableLiveActualQty(tab,item,type);
+  return {actual,pending,total:actual+pending};
+}
+function tableCellInput(tab,item,type,disabled=false){
+  if(isDateFilterActive()) return tableReportCell(tab,item,type);
+  const q=tableLiveQty(tab,item,type);
+  const cls=type==='import'||type==='production'||type==='return'?'live-plus':'live-minus';
+  return `<button type="button" class="live-entry ${q.total>0?'has-data':''} ${q.pending>0?'pending':''} ${cls}" onclick="openTableEntryModal('${tab}','${tableEsc(item.id)}','${type}')" ${disabled?'disabled':''}><span>${fmt(q.total)}</span><small>${q.pending>0?'+'+fmt(q.pending)+' chờ lưu':''}</small></button>`;
+}
+function openTableEntryModal(tab,id,type){
+  if(isDateFilterActive()) return;
+  const arr=tab==='raw'?raw:fg,item=arr.find(x=>sameLedgerItemId(x.id,id));
+  if(!item)return;
+  const labels={import:'Nhập kho',export:'Xuất kho',production:'Nấu thêm',sales:'Xuất bán',return:'Thu hồi',waste:'Hủy món'};
+  const q=tableLiveQty(tab,item,type);
+  openModal(`<h2 style="font-size:18px">${tableEsc(item.name)}</h2><div style="font-size:13px;color:var(--text-muted);margin-top:2px">${tableEsc(labels[type]||type)} · ĐVT: <b>${tableEsc(item.unit)}</b></div><div class="notice-box" style="margin-top:10px">Đã ghi hôm nay: <b style="font-size:17px">${fmt(q.actual)} ${tableEsc(item.unit)}</b>${q.pending>0?`<br><span style="font-size:12px;color:#0369a1">Đang chờ lưu: +${fmt(q.pending)} ${tableEsc(item.unit)}</span>`:''}</div><div class="form-group"><label>Nhập thêm</label><input id="tableEntryAmount" type="number" min="0.001" step="any" inputmode="decimal" placeholder="Nhập số lượng..." autofocus></div><div class="entry-help" style="margin-top:-2px">Số đã ghi hôm nay được giữ nguyên. Số bạn nhập sẽ được cộng thêm vào giao dịch của hôm nay.</div><div class="modal-buttons"><button class="btn-cancel" onclick="closeModal()">Hủy</button><button class="btn-save" onclick="confirmTableEntry('${tab}','${tableEsc(item.id)}','${type}')">➕ Thêm</button></div>`);
+  setTimeout(()=>document.getElementById('tableEntryAmount')?.focus(),50);
+}
+function confirmTableEntry(tab,id,type){
+  const qty=Number(document.getElementById('tableEntryAmount')?.value||0);
+  if(!validatePositiveQty(qty)) return showInventoryNotice('⚠️ Số lượng không hợp lệ','Vui lòng nhập số lượng lớn hơn 0.');
+  const key=tableDraftKey(tab,id),old=Number(tableDrafts[key]?.[type]||0);
+  setTableDraft(tab,id,type,old+qty);
+  closeModal();
+  render();
+}
 function tableStockEnd(tab,item){ const base=tab==='raw'?getStockRaw(item):getStockFG(item),d=tableDrafts[tableDraftKey(tab,item.id)]||{}; return tab==='raw'?Math.max(0,base+Number(d.import||0)-Number(d.export||0)):Math.max(0,base+Number(d.production||0)-Number(d.sales||0)+Number(d.return||0)-Number(d.waste||0)); }
 function tableCurrentStats(tab,item){ return tab==='raw'?getRawStatsByDate(item):getFGStatsByDate(item); }
 function tableHeaderGroup(text){ const el=document.getElementById('tableActiveGroup'); if(el) el.textContent=text||'Tất cả'; }
@@ -2370,9 +2481,9 @@ function updateTableRowUI(tab,id){ const key=tableDraftKey(tab,id),d=tableDrafts
 async function saveTableRow(tab,id){ const key=tableDraftKey(tab,id); if(tableSavingKey)return; if(isDateFilterActive())return showInventoryNotice('📅 Đang xem báo cáo','Hãy bấm “Về hiện tại” trước khi nhập liệu.'); const arr=tab==='raw'?raw:fg,item=arr.find(x=>sameLedgerItemId(x.id,id)); if(!item)return showInventoryNotice('❌ Không tìm thấy mặt hàng','Mặt hàng không còn tồn tại trên màn hình.'); const d={...(tableDrafts[key]||{})}; const ops=(tab==='raw'?[{type:'import',qty:Number(d.import||0),actionName:'＋ Nhập kho'},{type:'export',qty:Number(d.export||0),actionName:'− Xuất kho'}]:[{type:'production',qty:Number(d.production||0),actionName:'＋ Nấu thêm'},{type:'sales',qty:Number(d.sales||0),actionName:'− Xuất bán'},{type:'return',qty:Number(d.return||0),actionName:'↩ Thu hồi'},{type:'waste',qty:Number(d.waste||0),actionName:'− Hủy món'}]).filter(o=>o.qty>0); if(!ops.length)return; tableSavingKey=key;updateTableRowUI(tab,id); try{ const itemTable=tab==='raw'?'raw_items':'fg_items'; const {data:freshItem,error:freshError}=await supabaseClient.from(itemTable).select('*').eq('id',item.id).maybeSingle(); if(freshError||!freshItem)throw new Error(freshError?.message||'Không tìm thấy dữ liệu mặt hàng trên Cloud.'); const {data:cloudLogs,error:logsError}=await supabaseClient.from('logs').select('*').eq('tab',tab); if(logsError)throw new Error(`Không thể đọc Nhật Ký Cloud: ${logsError.message||logsError}`); const freshLogs=(cloudLogs||[]).map(l=>({id:l.id,tab:l.tab,itemId:l.itemid,item:l.item,action:l.action,qty:Number(l.qty||0),unit:l.unit,before:Number(l.before||0),after:Number(l.after||0),actionType:l.actiontype,user:l.user,username:l.userid||'',timestamp:Number(l.timestamp||0),dateKey:l.datekey||'',editedAt:l.editedat||null,editedBy:l.editedby||null,time:l.time||''})); let stock=calculateStockFromLogs(tab,freshItem,freshLogs); if(stock< -1e-9)throw new Error(`Tồn Ledger của ${freshItem.name} đang âm. Hãy kiểm kê lại trước khi tiếp tục.`); const updated=JSON.parse(JSON.stringify(freshItem)),prepared=[]; for(const op of ops){ if(!validatePositiveQty(op.qty))throw new Error(`${op.actionName}: số lượng phải lớn hơn 0.`); if(isStockDecreasingAction(tab,op.type)&&op.qty>stock+1e-9)throw new Error(`Không đủ tồn kho để ${op.actionName.toLowerCase()}. Tồn hiện có: ${fmt(stock)} ${freshItem.unit}.`); const before=stock; if(tab==='raw'){if(op.type==='import')stock+=op.qty;else stock-=op.qty;}else{if(op.type==='production'||op.type==='return')stock+=op.qty;else stock-=op.qty;} applyDraftToItem(updated,tab,op.type,op.qty); if(stock< -1e-9)throw new Error(`${op.actionName} làm tồn kho âm.`); prepared.push({...op,before,after:stock}); }
  const now=Date.now(),userName=`${currentUser.name} (${roleLabel(currentUser.role)})`; const payload=prepared.map((p,i)=>({id:'log_'+now+'_'+Math.random().toString(36).slice(2,9)+'_'+i,tab,itemid:freshItem.id,item:freshItem.name,action:p.actionName,qty:p.qty,unit:freshItem.unit,before:p.before,after:p.after,actiontype:p.type,timestamp:now+i,datekey:localDateKey(),userid:currentUser.id||currentUser.username||'',user:userName,time:dateTime(),editedat:null,editedby:null})); const {error:insertError}=await supabaseClient.from('logs').insert(payload); if(insertError)throw new Error(`Không thể ghi Nhật Ký Cloud: ${insertError.message||insertError}`); const {error:itemError}=await supabaseClient.from(itemTable).update(updated).eq('id',freshItem.id); if(itemError)console.warn('Không cập nhật được cột tổng; Ledger vẫn dùng Log Cloud:',itemError.message||itemError); const localItem=arr.find(x=>sameLedgerItemId(x.id,id));if(localItem)Object.assign(localItem,updated); const localLogs=payload.map(l=>({...l,itemId:l.itemid,actionType:l.actiontype,userId:l.userid,username:currentUser.username||'',dateKey:l.datekey,editedAt:null,editedBy:null,editDetail:'',time:l.time})); logs=[...localLogs,...logs];sortLogsNewestFirst();saveLocalState();clearTableDraft(tab,id);render();showSuccessToast(`${prepared.length} giao dịch đã được ghi nhận`); }catch(err){ console.error('Lỗi lưu bảng:',err);showInventoryNotice('❌ CHƯA LƯU ĐƯỢC',`${err.message||err}\n\nDữ liệu trên dòng chưa được ghi nhận.`); }finally{tableSavingKey='';} }
 function tableHeader(tab){ return tab==='raw'?`<thead><tr><th><div id="tableActiveGroup">Tất cả</div></th><th>Tồn đầu</th><th>Nhập kho</th><th>Xuất kho</th><th>Tồn kho</th><th>Xác nhận</th></tr></thead>`:`<thead><tr><th><div id="tableActiveGroup">Tất cả</div></th><th>Tồn đầu</th><th>Nấu thêm</th><th>Xuất bán</th><th>Thu hồi</th><th>Hủy</th><th>Tồn cuối</th><th>Xác nhận</th></tr></thead>`; }
-function tableRowRaw(item,report){ const key=tableDraftKey('raw',item.id),s=tableCurrentStats('raw',item); return `<tr class="data-row"><td><div class="item-cell-name">${tableEsc(item.name)}</div><div class="item-cell-unit">ĐVT: ${tableEsc(item.unit)}</div></td><td><div class="stock-static">${fmt(s.opening)}</div></td><td>${tableCellInput('raw',item,'import',report)}</td><td>${tableCellInput('raw',item,'export',report)}</td><td><div data-stock-end-key="${tableEsc(key)}" style="font-size:15px;font-weight:900;color:#0284c7">${fmt(tableStockEnd('raw',item))}</div></td><td><button type="button" data-save-key="${tableEsc(key)}" class="entry-save ${tableDraftHasData('raw',item.id)&&!report?'ready':''}" ${report||!tableDraftHasData('raw',item.id)?'disabled':''} onclick="saveTableRow('raw','${tableEsc(item.id)}')">Lưu</button></td></tr>`; }
-function tableRowFG(item,report){ const key=tableDraftKey('fg',item.id),s=tableCurrentStats('fg',item); return `<tr class="data-row"><td><div class="item-cell-name">${tableEsc(item.name)}</div><div class="item-cell-unit">ĐVT: ${tableEsc(item.unit)}</div></td><td><div class="stock-static">${fmt(s.opening)}</div></td><td>${tableCellInput('fg',item,'production',report)}</td><td>${tableCellInput('fg',item,'sales',report)}</td><td>${tableCellInput('fg',item,'return',report)}</td><td>${tableCellInput('fg',item,'waste',report)}</td><td><div data-stock-end-key="${tableEsc(key)}" style="font-size:15px;font-weight:900;color:#0284c7">${fmt(tableStockEnd('fg',item))}</div></td><td><button type="button" data-save-key="${tableEsc(key)}" class="entry-save ${tableDraftHasData('fg',item.id)&&!report?'ready':''}" ${report||!tableDraftHasData('fg',item.id)?'disabled':''} onclick="saveTableRow('fg','${tableEsc(item.id)}')">Lưu</button></td></tr>`; }
-function tableView(tab){ const report=isDateFilterActive(),arr=tab==='raw'?raw:fg,groupGetter=tab==='raw'?(x=>x.group):(x=>x.category),selected=tab==='raw'?rawGroup:fgGroup,filtered=sortItemsForDisplay(arr.filter(x=>(selected==='Tất cả'||groupGetter(x)===selected)&&String(x.name||'').toLowerCase().includes(String(query||'').toLowerCase()))),rows=[],groups=tab==='raw'?['Tất cả','HỒNG PHÁT','TNT','BAO BÌ','Khác']:['Tất cả','Đồ uống','Topping','Khác']; let last=null; for(const item of filtered){const g=groupGetter(item)||'Khác';if(g!==last){rows.push(`<tr class="group-row" data-group="${tableEsc(g)}"><td><div class="group-label"><span class="group-dot"></span>${tableEsc(g)}</div></td>${tab==='raw'?'<td colspan="5"></td>':'<td colspan="7"></td>'}</tr>`);last=g;}rows.push(tab==='raw'?tableRowRaw(item,report):tableRowFG(item,report));} const note=report?'📅 Đang xem báo cáo theo ngày — nhập liệu bị khóa. Bấm “Về hiện tại” để nhập.':'Chạm trực tiếp vào ô nhập liệu để nhập nhanh. Tồn đầu và Tồn cuối do hệ thống tự tính.'; return `${dateFilterView()}<div class="filter-wrapper"><div class="filter-scroll">${groups.map(g=>`<button class="filter-chip ${selected===g?'active':''}" onclick="${tab==='raw'?'rawGroup':'fgGroup'}='${tableEsc(g)}';render()">${tableEsc(g)}</button>`).join('')}</div></div><div class="entry-help">${note}</div><div class="table-entry-wrap"><div class="table-scroll"><table class="entry-table">${tableHeader(tab)}<tbody>${rows.join('')||`<tr><td colspan="${tab==='raw'?6:8}" class="table-empty">Chưa có dữ liệu.</td></tr>`}</tbody></table></div></div>` + (requestAnimationFrame(initTableStickyGroup), ""); }
+function tableRowRaw(item,report){ const key=tableDraftKey('raw',item.id),s=tableCurrentStats('raw',item); return `<tr class="data-row"><td><div class="item-cell-name">${tableEsc(item.name)}</div><div class="item-cell-unit">ĐVT: ${tableEsc(item.unit)}</div></td><td><div class="stock-static">${fmt(s.opening)}</div></td><td>${tableCellInput('raw',item,'import',report)}</td><td>${tableCellInput('raw',item,'export',report)}</td><td><div data-stock-end-key="${tableEsc(key)}" style="font-size:17px;font-weight:900;color:#0284c7">${fmt(tableStockEnd('raw',item))}</div></td><td><button type="button" data-save-key="${tableEsc(key)}" class="entry-save ${tableDraftHasData('raw',item.id)&&!report?'ready':''}" ${report||!tableDraftHasData('raw',item.id)?'disabled':''} onclick="saveTableRow('raw','${tableEsc(item.id)}')">Lưu</button></td></tr>`; }
+function tableRowFG(item,report){ const key=tableDraftKey('fg',item.id),s=tableCurrentStats('fg',item); return `<tr class="data-row"><td><div class="item-cell-name">${tableEsc(item.name)}</div><div class="item-cell-unit">ĐVT: ${tableEsc(item.unit)}</div></td><td><div class="stock-static">${fmt(s.opening)}</div></td><td>${tableCellInput('fg',item,'production',report)}</td><td>${tableCellInput('fg',item,'sales',report)}</td><td>${tableCellInput('fg',item,'return',report)}</td><td>${tableCellInput('fg',item,'waste',report)}</td><td><div data-stock-end-key="${tableEsc(key)}" style="font-size:17px;font-weight:900;color:#0284c7">${fmt(tableStockEnd('fg',item))}</div></td><td><button type="button" data-save-key="${tableEsc(key)}" class="entry-save ${tableDraftHasData('fg',item.id)&&!report?'ready':''}" ${report||!tableDraftHasData('fg',item.id)?'disabled':''} onclick="saveTableRow('fg','${tableEsc(item.id)}')">Lưu</button></td></tr>`; }
+function tableView(tab){ const report=isDateFilterActive(),arr=tab==='raw'?raw:fg,groupGetter=tab==='raw'?(x=>x.group):(x=>x.category),selected=tab==='raw'?rawGroup:fgGroup,filtered=sortItemsForDisplay(arr.filter(x=>(selected==='Tất cả'||groupGetter(x)===selected)&&String(x.name||'').toLowerCase().includes(String(query||'').toLowerCase()))),rows=[],groups=tab==='raw'?['Tất cả','HỒNG PHÁT','TNT','BAO BÌ','Khác']:['Tất cả','Đồ uống','Topping','Khác']; let last=null; for(const item of filtered){const g=groupGetter(item)||'Khác';if(g!==last){rows.push(`<tr class="group-row" data-group="${tableEsc(g)}"><td><div class="group-label"><span class="group-dot"></span>${tableEsc(g)}</div></td>${tab==='raw'?'<td colspan="5"></td>':'<td colspan="7"></td>'}</tr>`);last=g;}rows.push(tab==='raw'?tableRowRaw(item,report):tableRowFG(item,report));} const note=report?'📅 Đang xem lại dữ liệu — các ô Nhập/Xuất/Nấu thêm/Bán/Thu hồi/Hủy hiển thị tổng biến động thực tế của kỳ đã chọn, chỉ xem. Bấm “Về hiện tại” để nhập liệu.':'📌 Ngày hiện tại: các ô biến động hiển thị số đã ghi thực tế trong hôm nay. Bấm vào ô để nhập thêm; số mới sẽ cộng vào tổng hôm nay. Tồn đầu và Tồn cuối do hệ thống tự tính.'; return `${dateFilterView()}<div class="filter-wrapper"><div class="filter-scroll">${groups.map(g=>`<button class="filter-chip ${selected===g?'active':''}" onclick="${tab==='raw'?'rawGroup':'fgGroup'}='${tableEsc(g)}';render()">${tableEsc(g)}</button>`).join('')}</div></div><div class="entry-help">${note}</div><div class="table-entry-wrap"><div class="table-scroll"><table class="entry-table">${tableHeader(tab)}<tbody>${rows.join('')||`<tr><td colspan="${tab==='raw'?6:8}" class="table-empty">Chưa có dữ liệu.</td></tr>`}</tbody></table></div></div>` + (requestAnimationFrame(initTableStickyGroup), ""); }
 
 // VIEWS
 function loginView() {
