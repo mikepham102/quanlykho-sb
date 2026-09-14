@@ -103,7 +103,7 @@
     .audit-change { color:#9a3412; }
     .audit-edited-meta { margin-left:auto; white-space:nowrap; color:#c2410c; }
     /* Nhật Ký — thẻ giao dịch 2 bên, rõ người / mặt hàng / trạng thái */
-    .audit-transaction-card { background:#fff; border-radius:16px; padding:13px 14px; border:1px solid #d8e7f0; box-shadow:0 3px 12px rgba(15,23,42,.06); }
+   .audit-transaction-card { background:#fff; border-radius:16px; padding:13px 14px; border:1px solid #d8e7f0; box-shadow:0 3px 12px rgba(15,23,42,.06); }
     .audit-topline { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
     .audit-employee { color:#f8fafc; background:linear-gradient(135deg,#0f3d5e,#075985); padding:7px 11px; border-radius:10px; font-size:13px; font-weight:900; line-height:1.15; box-shadow:0 2px 5px rgba(7,89,133,.18); }
     .audit-time { color:#64748b; font-size:16px; font-weight:800; white-space:nowrap; }
@@ -1909,12 +1909,19 @@ async function saveLogEdit() {
   const editDetail = `Số lượng: ${fmt(oldQty)} ${l.unit} → ${fmt(n)} ${l.unit}`;
 
   const updatedItem = JSON.parse(JSON.stringify(x));
-  updatedItem.imported = sim.state.imported;
-  updatedItem.exported = sim.state.exported;
-  updatedItem.production = sim.state.production;
-  updatedItem.sales = sim.state.sales;
-  updatedItem.returned = sim.state.returned;
-  updatedItem.waste = sim.state.waste;
+  // Chỉ ghi các cột giao dịch thực sự tồn tại trên từng bảng.
+  // raw_items: imported, exported
+  // fg_items: production, sales, returned, waste
+  // Không gửi exported/imported vào fg_items (hoặc production/... vào raw_items).
+  if (l.tab === 'raw') {
+    updatedItem.imported = sim.state.imported;
+    updatedItem.exported = sim.state.exported;
+  } else {
+    updatedItem.production = sim.state.production;
+    updatedItem.sales = sim.state.sales;
+    updatedItem.returned = sim.state.returned;
+    updatedItem.waste = sim.state.waste;
+  }
 
   const confirmed = await showInventoryConfirm(
     '⚠️ XÁC NHẬN SỬA NHẬT KÝ',
