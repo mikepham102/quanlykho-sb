@@ -103,7 +103,7 @@
     .audit-change { color:#9a3412; }
     .audit-edited-meta { margin-left:auto; white-space:nowrap; color:#c2410c; }
     /* Nhật Ký — thẻ giao dịch 2 bên, rõ người / mặt hàng / trạng thái */
-    .audit-transaction-card { background:#fff; border-radius:16px; padding:13px 14px; border:1px solid #d8e7f0; box-shadow:0 3px 12px rgba(15,23,42,.06); }
+   .audit-transaction-card { background:#fff; border-radius:16px; padding:13px 14px; border:1px solid #d8e7f0; box-shadow:0 3px 12px rgba(15,23,42,.06); }
     .audit-topline { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
     .audit-employee { color:#f8fafc; background:linear-gradient(135deg,#0f3d5e,#075985); padding:7px 11px; border-radius:10px; font-size:13px; font-weight:900; line-height:1.15; box-shadow:0 2px 5px rgba(7,89,133,.18); }
     .audit-time { color:#64748b; font-size:16px; font-weight:800; white-space:nowrap; }
@@ -118,6 +118,7 @@
     .audit-qty { color:#0f172a; font-size:16px; font-weight:900; white-space:nowrap; }
     .audit-qty .unit { color:#475569; font-size:12px; font-weight:850; }
     .audit-divider { height:1px; background:#edf2f7; margin:7px 0; }
+    .audit-conversion{margin:-1px 0 7px;padding:6px 8px;border-radius:8px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:9px;font-weight:800;line-height:1.35}
     .audit-search-box { display:flex; align-items:stretch; gap:8px; padding:10px; margin-bottom:2px; background:#fff; border:1px solid #d8e7f0; border-radius:14px; box-shadow:0 2px 8px rgba(15,23,42,.05); }
     .audit-search-input { flex:1; min-width:0; height:42px; padding:0 12px; border:1.5px solid #cbd5e1; border-radius:10px; background:#f8fafc; color:#102a43; font-size:14px; font-weight:700; outline:none; box-sizing:border-box; }
     .audit-search-input:focus { border-color:#0284c7; background:#fff; box-shadow:0 0 0 3px rgba(2,132,199,.10); }
@@ -171,6 +172,7 @@
     .cost-input-wrap{width:150px;flex:none}.cost-input{font-size:14px!important}.cost-input-wrap span{display:block;text-align:center;color:#64748b;font-size:9px;font-weight:700;margin-top:2px}
     .cost-current{margin-top:7px;padding-top:7px;border-top:1px solid #edf2f7;color:#64748b;font-size:11px}.cost-current b{color:#0f766e}
     .cost-report-row{background:#fff;border:1px solid var(--border-color);border-radius:13px;padding:11px;margin-bottom:8px}.cost-report-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.cost-report-head b{font-size:13px;color:#102a43}.cost-report-head small{display:block;margin-top:2px;color:#991b1b;font-size:9px;font-weight:800}.cost-report-head strong{font-size:14px;color:#0f766e;white-space:nowrap}.cost-report-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}.cost-report-grid>div{background:#f8fafc;border-radius:8px;padding:7px 5px;text-align:center}.cost-report-grid span{display:block;color:#64748b;font-size:9px;font-weight:700}.cost-report-grid b{display:block;margin-top:2px;color:#0f172a;font-size:11px;font-weight:900}
+.cost-conversion-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.cost-conversion-grid label{display:block;color:#64748b;font-size:9px;font-weight:800;margin:0 0 4px}.cost-yield-preview{margin-top:8px;padding:8px 9px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:9px;color:#166534;font-size:10px;font-weight:700;line-height:1.4}.report-snapshot-menu{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0}.report-snapshot-menu button{border:1px solid #d8e7f0;background:#fff;border-radius:12px;padding:12px;text-align:left;cursor:pointer}.report-snapshot-menu b{display:block;color:#102a43;font-size:13px}.report-snapshot-menu span{display:block;margin-top:4px;color:#0f766e;font-size:10px;font-weight:800}.report-actions{display:flex;gap:8px;margin:10px 0}.report-actions .owner-tool-btn{background:#fff;color:#0f766e;border:1px solid #cbd5e1}.report-snapshot-card{background:#fff;border:1px solid #d8e7f0;border-radius:13px;padding:10px;margin-bottom:9px}.report-snapshot-head{display:flex;justify-content:space-between;gap:8px;align-items:center;color:#102a43}.report-snapshot-head b{font-size:13px}.report-snapshot-head span{font-size:9px;color:#64748b}.report-snapshot-row,.report-snapshot-input-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #edf2f7}.report-snapshot-row:last-child,.report-snapshot-input-row:last-child{border-bottom:0}.report-snapshot-row b,.report-snapshot-input-row b{display:block;color:#102a43;font-size:11px}.report-snapshot-row small,.report-snapshot-input-row small{display:block;color:#991b1b;font-size:8px;font-weight:800;margin-top:2px}.report-snapshot-value{font-size:10px;font-weight:900;color:#0f766e;text-align:right}.report-snapshot-input-row .tool-input{width:110px}.inventory-actions .inventory-save{background:#0f766e;color:#fff}.inventory-actions .inventory-close{background:#f1f5f9;color:#0f172a}
 
     /* Login */
     .login-wrapper { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-dark)); }
@@ -438,6 +440,8 @@ let transactionSaving = false; // Khóa giao dịch ngay khi bấm Xác nhận L
 let inventorySaving = false; // Khóa kiểm kê để không ghi trùng log
 let orderingTab = 'raw';
 let costMonth = localDateKey().slice(0,7);
+let inventoryReportSnapshots = {};
+let reportSnapshotSaving = false;
 
 let accounts = [];
 let raw = [];
@@ -459,7 +463,7 @@ async function fetchInitialData() {
       supabaseClient.from('raw_items').select('*'),
       supabaseClient.from('fg_items').select('*'),
       supabaseClient.from('logs').select('*').order('timestamp', { ascending: false }).order('id', { ascending: false }),
-      supabaseClient.from('config').select('*').in('key', ['shop_location','fabi_reconcile'])
+      supabaseClient.from('config').select('*').in('key', ['shop_location','fabi_reconcile','inventory_report_snapshots'])
     ]);
 
     // Không được âm thầm dùng localStorage nếu Cloud trả lỗi.
@@ -509,6 +513,7 @@ async function fetchInitialData() {
       const cfg = Object.fromEntries(configRes.data.map(r => [r.key, r.value]));
       if (cfg.shop_location) shopLocation = cfg.shop_location;
       if (cfg.fabi_reconcile) fabiRecords = cfg.fabi_reconcile || {};
+      if (cfg.inventory_report_snapshots) inventoryReportSnapshots = cfg.inventory_report_snapshots || {};
       // inventory_counts chỉ là dữ liệu nhập tạm trong màn hình kiểm kê; không dùng làm nguồn dữ liệu tồn kho.
     }
 
@@ -546,6 +551,17 @@ function fmt(num) { return Number(num || 0).toLocaleString('vi-VN', { maximumFra
 function fmtMoney(num) { return Number(num || 0).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + ' đ'; }
 function rawUnitCost(item) { const n = Number(item?.unit_cost ?? item?.unitCost ?? 0); return Number.isFinite(n) && n >= 0 ? n : 0; }
 function logUnitCost(log) { const n = Number(log?.unitCost ?? log?.unitcost ?? 0); return Number.isFinite(n) && n >= 0 ? n : 0; }
+function rawConversionUnit(item) { return String(item?.conversion_unit ?? item?.conversionUnit ?? '').trim(); }
+function rawConversionQty(item) { const n=Number(item?.conversion_qty ?? item?.conversionQty ?? 0); return Number.isFinite(n)&&n>0?n:0; }
+function rawUsagePerProduct(item) { const n=Number(item?.usage_per_product ?? item?.usagePerProduct ?? 0); return Number.isFinite(n)&&n>0?n:0; }
+function rawWasteQty(item) { const n=Number(item?.waste_qty ?? item?.wasteQty ?? 0); return Number.isFinite(n)&&n>=0?n:0; }
+function rawYieldPerSourceUnit(item) { const c=rawConversionQty(item), w=rawWasteQty(item), d=rawUsagePerProduct(item); if(c<=0||d<=0||w>=c)return 0; return Math.round((c-w)/d); }
+function logConversionUnit(log) { return String(log?.conversionUnit ?? log?.conversionunit ?? '').trim(); }
+function logConversionQty(log) { const n=Number(log?.conversionQty ?? log?.conversionqty ?? 0); return Number.isFinite(n)&&n>0?n:0; }
+function logUsagePerProduct(log) { const n=Number(log?.usagePerProduct ?? log?.dosage ?? 0); return Number.isFinite(n)&&n>0?n:0; }
+function logWasteQty(log) { const n=Number(log?.wasteQty ?? log?.wasteqty ?? 0); return Number.isFinite(n)&&n>=0?n:0; }
+function logYieldQty(log) { const n=Number(log?.yieldQty ?? log?.yieldqty ?? 0); return Number.isFinite(n)&&n>=0?n:0; }
+function rawYieldText(item) { const c=rawConversionQty(item),u=rawConversionUnit(item),d=rawUsagePerProduct(item),w=rawWasteQty(item),y=rawYieldPerSourceUnit(item); if(!c||!u||!d)return 'Chưa đủ định mức'; return `1 ${item.unit} = ${fmt(c)} ${u} · ${fmt(d)} ${u}/ly · hao hụt ${fmt(w)} ${u} · ≈ ${fmt(y)} ly`; }
 
 function sameLedgerItemId(a, b) {
   const aa = String(a ?? '').trim();
@@ -1296,7 +1312,7 @@ async function confirmAllDrafts() {
       after: Number(l.after || 0), actionType: l.actiontype, user: l.user,
       username: l.userid || '', timestamp: Number(l.timestamp || 0),
       dateKey: l.datekey || '', editedAt: l.editedat || null,
-      editedBy: l.editedby || null, time: l.time || ''
+      editedBy: l.editedby || null, time: l.time || '', unitCost: Number(l.unitcost || 0), conversionUnit: l.conversionunit || '', conversionQty: Number(l.conversionqty || 0), dosage: Number(l.dosage || 0), wasteQty: Number(l.wasteqty || 0), yieldQty: Number(l.yieldqty || 0)
     }));
 
     // Tất cả validation + before/after chạy trên Ledger Cloud mới nhất.
@@ -1377,6 +1393,11 @@ async function confirmAllDrafts() {
         after: p.after,
         actionType: p.draft.type,
         unitCost: savedTab === 'raw' && p.draft.type === 'import' ? rawUnitCost(freshItem) : 0,
+        conversionUnit: savedTab === 'raw' && p.draft.type === 'export' ? rawConversionUnit(freshItem) : '',
+        conversionQty: savedTab === 'raw' && p.draft.type === 'export' ? rawConversionQty(freshItem) : 0,
+        dosage: savedTab === 'raw' && p.draft.type === 'export' ? rawUsagePerProduct(freshItem) : 0,
+        wasteQty: savedTab === 'raw' && p.draft.type === 'export' ? rawWasteQty(freshItem) : 0,
+        yieldQty: savedTab === 'raw' && p.draft.type === 'export' ? rawYieldPerSourceUnit(freshItem) * p.qty : 0,
         user: userName,
         userId: currentUser.id,
         username: currentUser.username,
@@ -1396,6 +1417,11 @@ async function confirmAllDrafts() {
         after: p.after,
         actiontype: p.draft.type,
         unitcost: savedTab === 'raw' && p.draft.type === 'import' ? rawUnitCost(freshItem) : 0,
+        conversionunit: savedTab === 'raw' && p.draft.type === 'export' ? rawConversionUnit(freshItem) : '',
+        conversionqty: savedTab === 'raw' && p.draft.type === 'export' ? rawConversionQty(freshItem) : 0,
+        dosage: savedTab === 'raw' && p.draft.type === 'export' ? rawUsagePerProduct(freshItem) : 0,
+        wasteqty: savedTab === 'raw' && p.draft.type === 'export' ? rawWasteQty(freshItem) : 0,
+        yieldqty: savedTab === 'raw' && p.draft.type === 'export' ? rawYieldPerSourceUnit(freshItem) * p.qty : 0,
         timestamp,
         datekey: localDateKey(),
         userid: currentUser.id || currentUser.username || '',
@@ -1641,7 +1667,7 @@ async function saveItem() {
     let newItem;
     if (type === 'raw') {
       const group = document.getElementById('itemGroup').value;
-      newItem = { id: 'r_' + Date.now(), name, unit, group, opening, imported: 0, exported: 0, unit_cost: 0, sort_order: (raw.reduce((m,x)=>Math.max(m, Number(x.sort_order)||0),0) || raw.length*10) + 10 };
+      newItem = { id: 'r_' + Date.now(), name, unit, group, opening, imported: 0, exported: 0, unit_cost: 0, conversion_unit: '', conversion_qty: 0, usage_per_product: 0, waste_qty: 0, sort_order: (raw.reduce((m,x)=>Math.max(m, Number(x.sort_order)||0),0) || raw.length*10) + 10 };
       raw.push(newItem);
     } else {
       const category = document.getElementById('itemCat').value;
@@ -1955,6 +1981,7 @@ async function saveLogEdit() {
       actiontype: normalizeActionType(l),
       editedat: editedAt,
       editedby: editedBy,
+      ...(l.tab === 'raw' && normalizeActionType(l) === 'export' ? { yieldqty: Math.round((Math.max(0, logConversionQty(l) - logWasteQty(l)) / Math.max(0.000001, logUsagePerProduct(l))) * n) } : {}),
     }).eq('id', l.id);
     if (logError) {
       await supabaseClient.from(table).upsert(originalItem);
@@ -1969,6 +1996,7 @@ async function saveLogEdit() {
     l.editedAt = editedAt;
     l.editedBy = editedBy;
     l.editDetail = editDetail;
+    if (l.tab === 'raw' && normalizeActionType(l) === 'export') l.yieldQty = Math.round((Math.max(0, logConversionQty(l) - logWasteQty(l)) / Math.max(0.000001, logUsagePerProduct(l))) * n);
 
     // Cập nhật lại before/after trên các Log phía sau trong bộ nhớ để
     // Ledger hiển thị nhất quán ngay lập tức.
@@ -2011,82 +2039,97 @@ async function deleteLog(id) {
   if (!l) return alert('Không tìm thấy nhật ký.');
 
   const arr = l.tab === 'raw' ? raw : fg;
-  const x = arr.find(z => z.id === l.itemId);
+  const x = arr.find(z => sameLedgerItemId(z.id, l.itemId));
   if (!x) return alert(`Không tìm thấy mặt hàng “${l.item}” trong hệ thống.`);
 
   const type = normalizeActionType(l);
   const qty = Number(l.qty || 0);
   if (!type || !(qty > 0)) return alert('Nhật ký này thiếu loại giao dịch hoặc số lượng không hợp lệ.');
+
+  // QA an toàn Ledger: trước khi xóa, mô phỏng toàn bộ chuỗi sau khi bỏ log.
+  // Nếu việc xóa làm bất kỳ giao dịch phía sau âm tồn, tuyệt đối không cho xóa.
+  const sim = simulateItemLedger(l.tab, x, null, null, l.id);
+  if (!sim.ok) {
+    return showInventoryNotice(
+      '⚠️ KHÔNG THỂ XÓA NHẬT KÝ',
+      `${sim.message}\n\nXóa nhật ký này sẽ làm Ledger của các giao dịch phía sau không hợp lệ. Hãy kiểm kê lại hoặc xử lý giao dịch liên quan trước.`
+    );
+  }
+
   const confirmed = await showInventoryConfirm(
     '⚠️ XÁC NHẬN XÓA NHẬT KÝ',
-    `Bạn có chắc muốn xóa nhật ký “${l.action} ${fmt(qty)} ${l.unit}” của ${l.item}?\n\nHệ thống sẽ xóa record Cloud và hoàn tác tồn kho.`
+    `Bạn có chắc muốn xóa nhật ký “${l.action} ${fmt(qty)} ${l.unit}” của ${l.item}?\n\nHệ thống sẽ kiểm tra lại toàn bộ Ledger, xóa record Cloud và cập nhật lại các mốc Tồn trước/sau của các giao dịch phía sau.`
   );
   if (!confirmed) return;
 
   const oldItem = JSON.parse(JSON.stringify(x));
   const oldLogs = logs.slice();
-
-  // Xóa kiểm kê không thay đổi các cột tổng giao dịch trên item.
-  // Tồn sau xóa sẽ được dựng lại từ Ledger.
-  if (type === 'stocktake') {
-    // Không thay đổi x.
-  } else {
-    if (l.tab === 'raw') {
-      if (type === 'import') x.imported = Number(x.imported || 0) - qty;
-      else if (type === 'export') x.exported = Number(x.exported || 0) - qty;
-      else return alert('Loại giao dịch kho thô không hợp lệ.');
-    } else {
-      if (type === 'sales') x.sales = Number(x.sales || 0) - qty;
-      else if (type === 'production') x.production = Number(x.production || 0) - qty;
-      else if (type === 'return') x.returned = Number(x.returned || 0) - qty;
-      else if (type === 'waste') x.waste = Number(x.waste || 0) - qty;
-      else return alert('Loại giao dịch thành phẩm không hợp lệ.');
-    }
-  }
-
+  const resultMap = new Map(sim.results.map(r => [r.id, r]));
+  const affectedLogs = logs
+    .filter(z => z.tab === l.tab && sameLedgerItemId(z.itemId, l.itemId) && resultMap.has(z.id))
+    .map(z => ({ id:z.id, before:z.before, after:z.after }));
   const table = l.tab === 'raw' ? 'raw_items' : 'fg_items';
 
-  // QUAN TRỌNG: Supabase không throw khi delete lỗi, phải đọc error trực tiếp.
-  const { error: logError } = await supabaseClient.from('logs').delete().eq('id', id);
-  if (logError) {
-    Object.assign(x, oldItem);
-    return alert(`Không thể xóa nhật ký trên Cloud.\n\n${logError.message || 'Lỗi Supabase'}`);
+  // Dựng item aggregate theo Ledger mới. Kiểm kê không cộng vào các cột giao dịch.
+  if (l.tab === 'raw') {
+    x.imported = sim.state.imported;
+    x.exported = sim.state.exported;
+  } else {
+    x.production = sim.state.production;
+    x.sales = sim.state.sales;
+    x.returned = sim.state.returned;
+    x.waste = sim.state.waste;
   }
 
-  // Sau khi log xóa thành công mới ghi lại các cột tổng giao dịch trên item. Nhật ký kiểm kê không thay đổi các cột tổng.
-  const { error: itemError } = await supabaseClient.from(table).upsert(x);
-  if (itemError) {
-    // Khôi phục log Cloud nếu cập nhật tồn kho thất bại.
-    const { error: restoreError } = await supabaseClient.from('logs').insert({
-      id: l.id,
-      tab: l.tab,
-      itemid: l.itemId,
-      item: l.item,
-      action: l.action,
-      qty: qty,
-      unit: l.unit,
-      before: Number(l.before || 0),
-      after: Number(l.after || 0),
-      actiontype: type,
-      timestamp: Number(l.timestamp || Date.now()),
-      datekey: l.dateKey || new Date().toLocaleDateString('en-CA'),
-      userid: l.userId || l.username || currentUser.id || '',
-      user: l.user || '',
-      time: l.time || '',
-      editedat: l.editedAt || null,
-      editedby: l.editedBy || null,
+  try {
+    const { error: logError } = await supabaseClient.from('logs').delete().eq('id', id);
+    if (logError) throw new Error(`Không thể xóa nhật ký trên Cloud: ${logError.message || logError}`);
+
+    const { error: itemError } = await supabaseClient.from(table).upsert(x);
+    if (itemError) throw new Error(`Không thể cập nhật tồn kho Cloud sau khi xóa: ${itemError.message || itemError}`);
+
+    // Cập nhật before/after Cloud cho các giao dịch còn lại để Nhật Ký và Ledger cùng một trạng thái.
+    for (const a of affectedLogs) {
+      const r = resultMap.get(a.id);
+      if (!r) continue;
+      const { error } = await supabaseClient.from('logs').update({ before:Number(r.before), after:Number(r.after) }).eq('id', a.id);
+      if (error) throw new Error(`Không thể cập nhật mốc Tồn của nhật ký ${a.id}: ${error.message || error}`);
+    }
+
+    logs = oldLogs.filter(z => z.id !== id).map(z => {
+      const r = resultMap.get(z.id);
+      if (r) return {...z, before:Number(r.before), after:Number(r.after)};
+      return z;
     });
+    sortLogsNewestFirst();
+    saveLocalState();
+    render();
+    showSuccessToast('Đã xóa nhật ký và dựng lại Ledger thành công');
+  } catch (err) {
+    // Cố gắng khôi phục Cloud về trạng thái trước thao tác nếu một bước giữa chừng thất bại.
+    try {
+      await supabaseClient.from('logs').upsert({
+        id:l.id, tab:l.tab, itemid:l.itemId, item:l.item, action:l.action, qty:qty, unit:l.unit,
+        before:Number(l.before||0), after:Number(l.after||0), actiontype:type,
+        unitcost:Number(l.unitCost||l.unitcost||0), conversionunit:l.conversionUnit||l.conversionunit||'',
+        conversionqty:Number(l.conversionQty||l.conversionqty||0), dosage:Number(l.dosage||l.dosage||0),
+        wasteqty:Number(l.wasteQty||l.wasteqty||0), yieldqty:Number(l.yieldQty||l.yieldqty||0),
+        timestamp:Number(l.timestamp||Date.now()), datekey:l.dateKey||new Date().toLocaleDateString('en-CA'),
+        userid:l.userId||l.username||currentUser.id||'', user:l.user||'', time:l.time||'',
+        editedat:l.editedAt||null, editedby:l.editedBy||null
+      });
+      await supabaseClient.from(table).upsert(oldItem);
+      for (const a of affectedLogs) {
+        await supabaseClient.from('logs').update({before:Number(a.before||0),after:Number(a.after||0)}).eq('id',a.id);
+      }
+    } catch (rollbackError) {
+      console.error('Rollback deleteLog failed:', rollbackError);
+    }
     Object.assign(x, oldItem);
-    const restoreText = restoreError ? `\nKhôi phục nhật ký cũng lỗi: ${restoreError.message}` : '';
-    return alert(`Không thể cập nhật tồn kho Cloud sau khi xóa. ${itemError.message || 'Lỗi Supabase'}${restoreText}`);
+    logs = oldLogs;
+    return showInventoryNotice('❌ XÓA NHẬT KÝ KHÔNG THÀNH CÔNG', `${err.message || err}\n\nDữ liệu trên màn hình đã được giữ nguyên.`);
   }
-
-  logs = oldLogs.filter(z => z.id !== id);
-  sortLogsNewestFirst();
-  localStorage.setItem('awan_logs_backup', JSON.stringify(logs));
-  render();
 }
-
 
 // ===== ĐỐI CHIẾU FABI & KIỂM KÊ =====
 function openOwnerTool(tool) {
@@ -2096,6 +2139,7 @@ function openOwnerTool(tool) {
   if (tool === 'inventory') openModal(inventoryView());
   if (tool === 'cost') openModal(rawCostView());
   if (tool === 'costReport') openModal(rawCostReportView());
+  if (tool === 'reportSnapshot') openModal(reportSnapshotMenuView());
 }
 
 function rawCostView() {
@@ -2104,36 +2148,74 @@ function rawCostView() {
   const rows = groups.map(group => {
     const items = sortItemsForDisplay(raw.filter(x => (x.group || 'Khác') === group));
     if (!items.length) return '';
-    return `<div class=\"tool-section-title\">${group}</div>${items.map(x => `<div class=\"cost-row\"><div class=\"cost-item-head\"><div><div class=\"tool-name\">${tableEsc(x.name)}</div><div class=\"tool-unit\">ĐVT: ${tableEsc(x.unit)}</div></div><div class=\"cost-input-wrap\"><input id=\"cost_${tableEsc(x.id)}\" class=\"tool-input cost-input\" type=\"number\" min=\"0\" step=\"1\" value=\"${rawUnitCost(x) || ''}\" placeholder=\"0\"><span>đ / ${tableEsc(x.unit)}</span></div></div><div class=\"cost-current\">Giá đang dùng: <b>${rawUnitCost(x) ? fmtMoney(rawUnitCost(x)) : 'Chưa đặt'}</b></div></div>`).join('')}`;
+    return `<div class="tool-section-title">${group}</div>${items.map(x => {
+      const c = rawConversionQty(x), u = rawConversionUnit(x), d = rawUsagePerProduct(x), w = rawWasteQty(x);
+      const y = rawYieldPerSourceUnit(x);
+      return `<div class="cost-row">
+        <div class="cost-item-head"><div><div class="tool-name">${tableEsc(x.name)}</div><div class="tool-unit">ĐVT nhập/xuất: ${tableEsc(x.unit)}</div></div>
+          <div class="cost-input-wrap"><input id="cost_${tableEsc(x.id)}" class="tool-input cost-input" type="number" min="0" step="1" value="${rawUnitCost(x) || ''}" placeholder="0"><span>đ / ${tableEsc(x.unit)}</span></div>
+        </div>
+        <div class="cost-conversion-grid">
+          <div><label>Đơn vị quy đổi</label><input id="convunit_${tableEsc(x.id)}" class="tool-input" type="text" value="${tableEsc(u)}" placeholder="ml, gam..."></div>
+          <div><label>Số lượng quy đổi</label><input id="convqty_${tableEsc(x.id)}" class="tool-input" type="number" min="0.001" step="any" value="${c || ''}" placeholder="1000"></div>
+          <div><label>Định mức / 1 ly</label><input id="dosage_${tableEsc(x.id)}" class="tool-input" type="number" min="0.001" step="any" value="${d || ''}" placeholder="20"></div>
+          <div><label>Hao hụt / ${tableEsc(x.unit)}</label><input id="waste_${tableEsc(x.id)}" class="tool-input" type="number" min="0" step="any" value="${w || ''}" placeholder="50"></div>
+        </div>
+        <div class="cost-yield-preview">${c && u && d ? `1 ${tableEsc(x.unit)} → ${fmt(c)} ${tableEsc(u)} · ${fmt(d)} ${tableEsc(u)}/ly · hao hụt ${fmt(w)} ${tableEsc(u)} · <b>≈ ${fmt(y)} ly</b>` : 'Chưa đủ định mức quy đổi để tính số ly.'}</div>
+        <div class="cost-current">Giá đang dùng: <b>${rawUnitCost(x) ? fmtMoney(rawUnitCost(x)) : 'Chưa đặt'}</b></div>
+      </div>`;
+    }).join('')}`;
   }).join('');
-  return `<h2 style=\"font-size:18px\">💰 Giá vốn nguyên liệu</h2><div class=\"tool-note\">Chỉ Owner/Admin được thay đổi giá vốn. Giá này được dùng cho các lần <b>Nhập kho</b> mới và làm cơ sở định giá tồn kho khi kiểm kê.</div>${rows || '<div class=\"empty-state\">Chưa có nguyên liệu.</div>'}<div class=\"modal-buttons\"><button class=\"btn-cancel\" onclick=\"closeModal()\">Hủy</button><button class=\"btn-save\" onclick=\"saveRawCosts()\">💾 Lưu giá vốn</button></div>`;
+  return `<h2 style="font-size:18px">💰 Giá vốn & định mức nguyên liệu</h2><div class="tool-note">Chỉ Owner/Admin được thay đổi. <b>Giá vốn</b> là giá cho 1 ĐVT nhập kho. Nếu 1 chai quy đổi thành ml, nhập đơn vị và số lượng quy đổi; sau đó nhập định mức ml/ly và hao hụt để hệ thống tính số ly lý thuyết.</div>${rows || '<div class="empty-state">Chưa có nguyên liệu.</div>'}<div class="inventory-actions"><button class="inventory-close" onclick="closeModal()">Đóng</button><button class="inventory-save" onclick="saveRawCosts()">💾 Lưu giá vốn</button></div>`;
 }
 
 async function saveRawCosts() {
   if (!isOwnerRole()) return showInventoryNotice('⚠️ Không có quyền', 'Chỉ tài khoản Admin/Owner mới được thay đổi giá vốn.');
   const changes = [];
   for (const x of raw) {
-    const el = document.getElementById('cost_' + x.id);
-    if (!el) continue;
-    const n = Number(el.value || 0);
-    if (!Number.isFinite(n) || n < 0) return showInventoryNotice('⚠️ Giá vốn không hợp lệ', `${x.name}: giá vốn phải từ 0 trở lên.`);
-    if (Math.abs(n - rawUnitCost(x)) > 1e-9) changes.push({item:x, value:n});
+    const costEl = document.getElementById('cost_' + x.id);
+    if (!costEl) continue;
+    const cost = Number(costEl.value || 0);
+    const unit = String(document.getElementById('convunit_' + x.id)?.value || '').trim();
+    const conv = Number(document.getElementById('convqty_' + x.id)?.value || 0);
+    const dosage = Number(document.getElementById('dosage_' + x.id)?.value || 0);
+    const waste = Number(document.getElementById('waste_' + x.id)?.value || 0);
+    if (!Number.isFinite(cost) || cost < 0) return showInventoryNotice('⚠️ Giá vốn không hợp lệ', `${x.name}: giá vốn phải từ 0 trở lên.`);
+    if (unit && (!Number.isFinite(conv) || conv <= 0)) return showInventoryNotice('⚠️ Định mức chưa hợp lệ', `${x.name}: khi có đơn vị quy đổi phải nhập số lượng quy đổi lớn hơn 0.`);
+    if (unit && (!Number.isFinite(dosage) || dosage <= 0)) return showInventoryNotice('⚠️ Định mức chưa hợp lệ', `${x.name}: phải nhập định mức sử dụng / 1 ly lớn hơn 0.`);
+    if (unit && (!Number.isFinite(waste) || waste < 0 || waste >= conv)) return showInventoryNotice('⚠️ Hao hụt chưa hợp lệ', `${x.name}: hao hụt phải từ 0 và nhỏ hơn ${fmt(conv)} ${unit}.`);
+    const changed = Math.abs(cost-rawUnitCost(x))>1e-9 || unit!==rawConversionUnit(x) || Math.abs(conv-rawConversionQty(x))>1e-9 || Math.abs(dosage-rawUsagePerProduct(x))>1e-9 || Math.abs(waste-rawWasteQty(x))>1e-9;
+    if (changed) changes.push({item:x,cost,unit,conv,dosage,waste});
   }
-  if (!changes.length) return showInventoryNotice('ℹ️ Chưa có thay đổi', 'Không có giá vốn nào được thay đổi.');
+  if (!changes.length) return showInventoryNotice('ℹ️ Chưa có thay đổi', 'Không có giá vốn hoặc định mức nào được thay đổi.');
   try {
-    for (const c of changes) {
-      const updated = { ...c.item, unit_cost: c.value };
-      delete updated.unitCost;
-      await supabaseClient.from('raw_items').upsert(updated).then(({error}) => { if (error) throw error; });
-      Object.assign(c.item, updated);
-    }
+    // Ghi toàn bộ thay đổi lên Cloud trong MỘT lần. Chỉ cập nhật bộ nhớ/local
+    // sau khi Cloud xác nhận thành công, tránh trạng thái “máy đã lưu nhưng Cloud chưa lưu”.
+    const updates = changes.map(c => {
+      const updated = { ...c.item, unit_cost:c.cost, conversion_unit:c.unit, conversion_qty:c.conv || 0, usage_per_product:c.dosage || 0, waste_qty:c.waste || 0 };
+      delete updated.unitCost; delete updated.conversionUnit; delete updated.conversionQty; delete updated.usagePerProduct; delete updated.wasteQty;
+      return updated;
+    });
+    const {error}=await supabaseClient.from('raw_items').upsert(updates);
+    if(error) throw error;
+    updates.forEach(updated => {
+      const local = raw.find(x => sameLedgerItemId(x.id, updated.id));
+      if(local) Object.assign(local, updated);
+    });
     saveLocalState();
-    closeModal();
-    render();
-    showSuccessToast(`Đã cập nhật giá vốn ${changes.length} nguyên liệu`);
-  } catch (e) {
-    showInventoryNotice('❌ CHƯA LƯU ĐƯỢC GIÁ VỐN', e.message || String(e));
-  }
+    openModal(rawCostView());
+    showSuccessToast(`Đã lưu ${changes.length} nguyên liệu`);
+  } catch(e) { showInventoryNotice('❌ CHƯA LƯU ĐƯỢC GIÁ VỐN', e.message || String(e)); }
+}
+
+function reportSnapshotMenuView(){
+  if(!isOwnerRole()) return '';
+  const {month}=monthBounds(costMonth);
+  const prev=previousMonth(month);
+  const opening=getReportSnapshot(month,'opening');
+  const closing=getReportSnapshot(month,'closing');
+  const prevClosing=getReportSnapshot(prev,'closing');
+  return `<h2 style="font-size:18px">📌 Chốt dữ liệu báo cáo</h2><div class="tool-note">Phần này <b>tách hoàn toàn khỏi Kiểm kê</b>. Chốt ở đây chỉ tạo ảnh chụp tiền hàng đầu/cuối kỳ cho báo cáo tháng; không thay đổi Ledger và không ghi Nhật Ký.</div><div class="form-group"><label>Tháng</label><input type="month" value="${month}" onchange="costMonth=this.value;openModal(reportSnapshotMenuView())"></div><div class="report-snapshot-menu"><button type="button" onclick="openModal(reportSnapshotEditor('${month}','opening'))"><b>🔓 Đầu kỳ</b><span>${opening?'Đã chốt':'Chưa chốt'}</span></button><button type="button" onclick="openModal(reportSnapshotEditor('${month}','closing'))"><b>🔒 Cuối kỳ</b><span>${closing?'Đã chốt':'Chưa chốt'}</span></button></div>${prevClosing?`<div class="tool-note" style="margin-top:10px">Tháng ${prev} đã có <b>Cuối kỳ</b>. Khi chốt Đầu kỳ ${month}, hệ thống sẽ tự điền theo số lượng và giá trị Cuối kỳ tháng trước.</div>`:''}<div class="modal-buttons"><button class="btn-cancel" onclick="closeModal()">Đóng</button></div>`;
 }
 
 function monthBounds(month) {
@@ -2143,45 +2225,80 @@ function monthBounds(month) {
   const end = new Date(y, mm, 0, 23,59,59,999).getTime();
   return {month:m,start,end};
 }
-function latestRawStocktakeBefore(item, timeMs) {
-  return logs.filter(l => l.tab==='raw' && logBelongsToItem(l,'raw',item) && normalizeActionType(l)==='stocktake' && logTimestamp(l,0) < timeMs)
-    .sort((a,b)=>logTimestamp(b,0)-logTimestamp(a,0))[0] || null;
-}
-function latestRawStocktakeInMonth(item, start, end) {
-  return logs.filter(l => l.tab==='raw' && logBelongsToItem(l,'raw',item) && normalizeActionType(l)==='stocktake' && logTimestamp(l,0)>=start && logTimestamp(l,0)<=end)
-    .sort((a,b)=>logTimestamp(b,0)-logTimestamp(a,0))[0] || null;
-}
+function reportSnapshotKey(month,type){ return `${month}|${type}`; }
+function getReportSnapshot(month,type){ return inventoryReportSnapshots?.[reportSnapshotKey(month,type)] || null; }
+function reportSnapshotTotal(snapshot){ return Object.values(snapshot?.items || {}).reduce((sum,v)=>sum+Number(v?.value||0),0); }
+function reportSnapshotQty(snapshot,item){ return Number(snapshot?.items?.[item.id]?.qty ?? 0); }
 function rawImportValueInMonth(item,start,end) {
   return logs.filter(l => l.tab==='raw' && logBelongsToItem(l,'raw',item) && normalizeActionType(l)==='import' && logTimestamp(l,0)>=start && logTimestamp(l,0)<=end)
     .reduce((sum,l)=>sum + Number(l.qty||0) * logUnitCost(l),0);
 }
-function rawCostReportData(month) {
-  const {start,end}=monthBounds(month);
-  return raw.map(item=>{
-    const openingLog=latestRawStocktakeBefore(item,start);
-    const closingLog=latestRawStocktakeInMonth(item,start,end);
-    const openingQty=openingLog ? Number(openingLog.after||0) : null;
-    const openingCost=openingLog ? openingQty * logUnitCost(openingLog) : null;
-    const purchaseValue=rawImportValueInMonth(item,start,end);
-    const closingQty=closingLog ? Number(closingLog.after||0) : null;
-    const closingCost=closingLog ? closingQty * logUnitCost(closingLog) : null;
-    const usage=openingCost!=null && closingCost!=null ? openingCost + purchaseValue - closingCost : null;
-    return {item,openingLog,closingLog,openingQty,openingCost,purchaseValue,closingQty,closingCost,usage};
-  });
+function reportSnapshotView(month,type){
+  if(!isOwnerRole()) return '';
+  const snap=getReportSnapshot(month,type);
+  const label=type==='closing'?'Cuối kỳ':'Đầu kỳ';
+  const items=raw.map(x=>`<div class="report-snapshot-row"><div><b>${tableEsc(x.name)}</b><small>${tableEsc(x.group||'Khác')} · ${tableEsc(x.unit)}</small></div><div class="report-snapshot-value">${snap?.items?.[x.id]?`${fmt(snap.items[x.id].qty)} ${tableEsc(x.unit)} · ${fmtMoney(snap.items[x.id].value)}`:'—'}</div></div>`).join('');
+  return `<div class="report-snapshot-card"><div class="report-snapshot-head"><b>${label}</b><span>${snap?.savedAt ? `Đã chốt ${snap.savedAt}` : 'Chưa chốt'}</span></div>${snap?`<div class="tool-note" style="margin-top:8px">Dữ liệu này là <b>ảnh chụp báo cáo</b>, không thay đổi Tồn kho/Ledger và không tạo Nhật Ký.</div>`:''}<div>${items}</div></div>`;
+}
+function reportSnapshotEditor(month,type){
+  if(!isOwnerRole()) return '';
+  const previousClosing=getReportSnapshot(month,type==='opening'?'closing':'closing');
+  const existing=getReportSnapshot(month,type);
+  const rows=raw.map(x=>{
+    const inheritedItem=type==='opening' && !existing ? getReportSnapshot(previousMonth(month),'closing')?.items?.[x.id] : null;
+    const qty=existing?.items?.[x.id]?.qty ?? inheritedItem?.qty ?? '';
+    const inheritedValue=inheritedItem?.value ?? '';
+    return `<div class="report-snapshot-input-row"><div><b>${tableEsc(x.name)}</b><small>${tableEsc(x.unit)} · giá hiện tại ${fmtMoney(rawUnitCost(x))}/${tableEsc(x.unit)}${inheritedItem?' · kế thừa cuối kỳ tháng trước':''}</small></div><input id="reportqty_${tableEsc(x.id)}" data-inherited-qty="${inheritedItem?.qty ?? ''}" data-inherited-value="${inheritedValue}" class="tool-input" type="number" min="0" step="any" value="${qty}"></div>`;
+  }).join('');
+  return `<h3 style="font-size:15px;margin:14px 0 8px">${type==='closing'?'🔒 Chốt cuối kỳ':'🔓 Chốt đầu kỳ'} · ${month}</h3><div class="tool-note">Chốt dữ liệu báo cáo riêng biệt với <b>Kiểm kê</b>. Việc chốt này chỉ tạo dữ liệu tiền hàng cho báo cáo, <b>không thay đổi tồn kho thực tế và không ghi Nhật Ký</b>.</div><div>${rows}</div><div class="inventory-actions"><button class="inventory-close" onclick="openModal(rawCostReportView())">Hủy</button><button class="inventory-save" onclick="saveReportSnapshot('${month}','${type}')">💾 Chốt dữ liệu ${type==='closing'?'cuối':'đầu'} kỳ</button></div>`;
+}
+function previousMonth(month){ const [y,m]=month.split('-').map(Number); const d=new Date(y,m-2,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+async function saveReportSnapshot(month,type){
+  if(reportSnapshotSaving)return;
+  if(!isOwnerRole())return showInventoryNotice('⚠️ Không có quyền','Chỉ Owner/Admin được chốt dữ liệu báo cáo.');
+  reportSnapshotSaving=true;
+  try{
+    const items={};
+    for(const x of raw){ const el=document.getElementById('reportqty_'+x.id); if(!el||el.value==='') continue; const qty=Number(el.value); if(!Number.isFinite(qty)||qty<0)throw new Error(`${x.name}: số lượng phải từ 0 trở lên.`); const inheritedQty=Number(el.dataset.inheritedQty); const inheritedValue=Number(el.dataset.inheritedValue); const keepInherited=type==='opening'&&Number.isFinite(inheritedQty)&&Math.abs(qty-inheritedQty)<1e-9&&Number.isFinite(inheritedValue); items[x.id]={qty,value:keepInherited?inheritedValue:qty*rawUnitCost(x),unit:x.unit,name:x.name,unitCost:keepInherited?Number(getReportSnapshot(previousMonth(month),'closing')?.items?.[x.id]?.unitCost||rawUnitCost(x)):rawUnitCost(x)}; }
+    if(!Object.keys(items).length)throw new Error('Chưa có số lượng nào để chốt.');
+    const savedAt=dateTime();
+    const savedBy=currentUser.id||currentUser.username||'';
+    const savedByName=currentUser.name||'';
+    const nextState={...(inventoryReportSnapshots||{})};
+    const key=reportSnapshotKey(month,type);
+    const snapshot={month,type,savedAt,savedBy,savedByName,items};
+    nextState[key]=snapshot;
+
+    // Khi chốt Cuối kỳ, đó là nguồn chính thức cho Đầu kỳ tháng kế tiếp.
+    // Ghi luôn snapshot kế thừa để báo cáo tháng sau không bị đứt dữ liệu.
+    if(type==='closing'){
+      const [yy,mm]=month.split('-').map(Number);
+      const nextDate=new Date(yy,mm,1);
+      const nextKey=`${nextDate.getFullYear()}-${String(nextDate.getMonth()+1).padStart(2,'0')}|opening`;
+      nextState[nextKey]={month:nextKey.slice(0,7),type:'opening',savedAt,savedBy,savedByName,source:'closing',items:JSON.parse(JSON.stringify(items))};
+    }
+
+    // Cloud là nguồn sự thật: chỉ cập nhật local sau khi Cloud thành công.
+    await saveConfigCloud('inventory_report_snapshots',nextState);
+    inventoryReportSnapshots=nextState;
+    configSaveLocal('sb_inventory_report_snapshots',inventoryReportSnapshots);
+    showSuccessToast(`Đã chốt dữ liệu ${type==='closing'?'cuối':'đầu'} kỳ ${month}`);
+    openModal(rawCostReportView());
+  }catch(e){showInventoryNotice('❌ CHƯA CHỐT ĐƯỢC DỮ LIỆU BÁO CÁO',e.message||String(e));}
+  finally{reportSnapshotSaving=false;}
 }
 function rawCostReportView() {
   if (!isOwnerRole()) return '';
-  const {month}=monthBounds(costMonth);
-  const data=rawCostReportData(month);
-  const official=data.filter(x=>x.openingCost!=null && x.closingCost!=null);
-  const totalOpening=official.reduce((s,x)=>s+x.openingCost,0);
-  const totalPurchases=data.reduce((s,x)=>s+x.purchaseValue,0);
-  const totalClosing=official.reduce((s,x)=>s+x.closingCost,0);
-  const totalUsage=official.reduce((s,x)=>s+x.usage,0);
-  const hasMissing=official.length!==data.length;
-  const rows=sortItemsForDisplay(data.map(x=>x.item)).map(item=>{ const d=data.find(x=>x.item.id===item.id); return `<div class=\"cost-report-row\"><div class=\"cost-report-head\"><div><b>${tableEsc(item.name)}</b><small>${tableEsc(item.group||'Khác')} · ${tableEsc(item.unit)}</small></div><strong>${d.usage==null?'—':fmtMoney(d.usage)}</strong></div><div class=\"cost-report-grid\"><div><span>Đầu kỳ</span><b>${d.openingCost==null?'—':fmtMoney(d.openingCost)}</b></div><div><span>Nhập thêm</span><b>${fmtMoney(d.purchaseValue)}</b></div><div><span>Cuối kỳ</span><b>${d.closingCost==null?'Chưa kiểm kê':fmtMoney(d.closingCost)}</b></div></div></div>`; }).join('');
-  return `<h2 style=\"font-size:18px\">📈 Báo cáo tồn kho sau kiểm kê</h2><div class=\"form-group\" style=\"margin-top:10px\"><label>Tháng báo cáo</label><input id=\"costReportMonth\" type=\"month\" value=\"${month}\" onchange=\"costMonth=this.value;openModal(rawCostReportView())\"></div><div class=\"tool-note\"><b>Tiền nguyên liệu sử dụng trong tháng = Tiền hàng đầu kỳ + Nhập thêm trong kỳ − Tiền hàng cuối kỳ.</b><br>Kiểm kê cuối tháng là số liệu cuối kỳ của tháng đó và đồng thời là số liệu đầu kỳ của tháng kế tiếp.</div><div class=\"tool-summary\"><div class=\"tool-summary-box\"><small>Tiền đầu kỳ</small><b>${fmtMoney(totalOpening)}</b></div><div class=\"tool-summary-box\"><small>Nhập thêm</small><b>${fmtMoney(totalPurchases)}</b></div><div class=\"tool-summary-box\"><small>Tiền sử dụng</small><b style=\"color:#0f766e\">${hasMissing?'—':fmtMoney(totalUsage)}</b></div></div><div class=\"tool-summary\"><div class=\"tool-summary-box\" style=\"grid-column:span 3\"><small>Tiền cuối kỳ sau kiểm kê</small><b>${hasMissing?'Chưa đủ kiểm kê':fmtMoney(totalClosing)}</b></div></div>${hasMissing?'<div class=\"tool-note tool-danger\">Một hoặc nhiều nguyên liệu chưa có kiểm kê đầu kỳ hoặc chưa có kiểm kê trong tháng này. Tổng “Tiền sử dụng” chỉ được tính chính thức khi đủ hai mốc kiểm kê.</div>':''}<div>${rows}</div><div class=\"modal-buttons\"><button class=\"btn-cancel\" onclick=\"closeModal()\">Đóng</button></div>`;
+  const {month,start,end}=monthBounds(costMonth);
+  const opening=getReportSnapshot(month,'opening');
+  const closing=getReportSnapshot(month,'closing');
+  const data=raw.map(item=>{ const o=opening?.items?.[item.id]; const c=closing?.items?.[item.id]; const purchaseValue=rawImportValueInMonth(item,start,end); const openingValue=o?.value ?? null; const closingValue=c?.value ?? null; const usage=openingValue!=null&&closingValue!=null?openingValue+purchaseValue-closingValue:null; return {item,openingValue,closingValue,purchaseValue,usage}; });
+  const complete=data.every(x=>x.openingValue!=null&&x.closingValue!=null);
+  const totalOpening=data.reduce((s,x)=>s+(x.openingValue||0),0), totalPurchases=data.reduce((s,x)=>s+x.purchaseValue,0), totalClosing=data.reduce((s,x)=>s+(x.closingValue||0),0), totalUsage=complete?data.reduce((s,x)=>s+x.usage,0):null;
+  const rows=sortItemsForDisplay(data.map(x=>x.item)).map(item=>{const d=data.find(x=>x.item.id===item.id);return `<div class="cost-report-row"><div class="cost-report-head"><div><b>${tableEsc(item.name)}</b><small>${tableEsc(item.group||'Khác')} · ${tableEsc(item.unit)}</small></div><strong>${d.usage==null?'—':fmtMoney(d.usage)}</strong></div><div class="cost-report-grid"><div><span>Đầu kỳ</span><b>${d.openingValue==null?'—':fmtMoney(d.openingValue)}</b></div><div><span>Nhập thêm</span><b>${fmtMoney(d.purchaseValue)}</b></div><div><span>Cuối kỳ</span><b>${d.closingValue==null?'—':fmtMoney(d.closingValue)}</b></div></div></div>`}).join('');
+  return `<h2 style="font-size:18px">📈 Báo cáo tiền hàng nguyên liệu</h2><div class="form-group" style="margin-top:10px"><label>Tháng báo cáo</label><input id="costReportMonth" type="month" value="${month}" onchange="costMonth=this.value;openModal(rawCostReportView())"></div><div class="tool-note"><b>Tiền nguyên liệu sử dụng = Tiền hàng đầu kỳ + Nhập thêm trong kỳ − Tiền hàng cuối kỳ.</b><br>Dữ liệu đầu/cuối kỳ lấy từ phần <b>Chốt dữ liệu báo cáo</b>, hoàn toàn tách khỏi phần Kiểm kê tồn kho.</div><div class="tool-summary"><div class="tool-summary-box"><small>Tiền đầu kỳ</small><b>${opening?fmtMoney(totalOpening):'Chưa chốt'}</b></div><div class="tool-summary-box"><small>Nhập thêm</small><b>${fmtMoney(totalPurchases)}</b></div><div class="tool-summary-box"><small>Tiền cuối kỳ</small><b>${closing?fmtMoney(totalClosing):'Chưa chốt'}</b></div></div><div class="tool-summary"><div class="tool-summary-box" style="grid-column:span 3"><small>Tiền nguyên liệu sử dụng</small><b style="color:#0f766e">${totalUsage==null?'Chưa đủ dữ liệu':fmtMoney(totalUsage)}</b></div></div>${!opening||!closing?'<div class="tool-note tool-danger">Muốn có báo cáo chính thức cho tháng này, cần chốt đủ <b>Đầu kỳ</b> và <b>Cuối kỳ</b>. Cuối kỳ tháng này sẽ được dùng làm đầu kỳ cho tháng kế tiếp.</div>':''}<div class="report-actions"><button class="owner-tool-btn" onclick="openModal(reportSnapshotEditor('${month}','opening'))">🔓 Chốt đầu kỳ</button><button class="owner-tool-btn" onclick="openModal(reportSnapshotEditor('${month}','closing'))">🔒 Chốt cuối kỳ</button></div><div class="tool-section-title">Lịch sử dữ liệu đã chốt</div>${reportSnapshotView(month,'opening')}${reportSnapshotView(month,'closing')}<div class="tool-section-title">Chi tiết báo cáo</div>${rows}<div class="modal-buttons"><button class="btn-cancel" onclick="closeModal()">Đóng</button></div>`;
 }
+
 function saveFabiReconcile() {
   const date = document.getElementById('fabiDate')?.value || localDateKey();
   const data = {};
@@ -2642,7 +2759,7 @@ function initTableStickyGroup(){
 }
 function updateTableRowUI(tab,id){ const key=tableDraftKey(tab,id),d=tableDrafts[key]||{},btn=document.querySelector(`[data-save-key="${CSS.escape(key)}"]`),end=document.querySelector(`[data-stock-end-key="${CSS.escape(key)}"]`),has=Object.values(d).some(v=>Number(v)>0); if(btn){btn.classList.toggle('ready',has&&!tableSavingKey);btn.disabled=!has||!!tableSavingKey;btn.textContent=tableSavingKey===key?'⏳':'Lưu';} if(end){const item=(tab==='raw'?raw:fg).find(x=>sameLedgerItemId(x.id,id));if(item)end.textContent=fmt(tableStockEnd(tab,item));} }
 async function saveTableRow(tab,id){ const key=tableDraftKey(tab,id); if(tableSavingKey)return; if(isDateFilterActive())return showInventoryNotice('📅 Đang xem báo cáo','Hãy bấm “Về hiện tại” trước khi nhập liệu.'); const arr=tab==='raw'?raw:fg,item=arr.find(x=>sameLedgerItemId(x.id,id)); if(!item)return showInventoryNotice('❌ Không tìm thấy mặt hàng','Mặt hàng không còn tồn tại trên màn hình.'); const d={...(tableDrafts[key]||{})}; const ops=(tab==='raw'?[{type:'import',qty:Number(d.import||0),actionName:'＋ Nhập kho'},{type:'export',qty:Number(d.export||0),actionName:'− Xuất kho'}]:[{type:'production',qty:Number(d.production||0),actionName:'＋ Nấu thêm'},{type:'sales',qty:Number(d.sales||0),actionName:'− Xuất bán'},{type:'return',qty:Number(d.return||0),actionName:'↩ Thu hồi'},{type:'waste',qty:Number(d.waste||0),actionName:'− Hủy món'}]).filter(o=>o.qty>0); if(!ops.length)return; tableSavingKey=key;updateTableRowUI(tab,id); try{ const itemTable=tab==='raw'?'raw_items':'fg_items'; const {data:freshItem,error:freshError}=await supabaseClient.from(itemTable).select('*').eq('id',item.id).maybeSingle(); if(freshError||!freshItem)throw new Error(freshError?.message||'Không tìm thấy dữ liệu mặt hàng trên Cloud.'); const {data:cloudLogs,error:logsError}=await supabaseClient.from('logs').select('*').eq('tab',tab); if(logsError)throw new Error(`Không thể đọc Nhật Ký Cloud: ${logsError.message||logsError}`); const freshLogs=(cloudLogs||[]).map(l=>({id:l.id,tab:l.tab,itemId:l.itemid,item:l.item,action:l.action,qty:Number(l.qty||0),unit:l.unit,before:Number(l.before||0),after:Number(l.after||0),actionType:l.actiontype,user:l.user,username:l.userid||'',timestamp:Number(l.timestamp||0),dateKey:l.datekey||'',editedAt:l.editedat||null,editedBy:l.editedby||null,time:l.time||''})); let stock=calculateStockFromLogs(tab,freshItem,freshLogs); if(stock< -1e-9)throw new Error(`Tồn Ledger của ${freshItem.name} đang âm. Hãy kiểm kê lại trước khi tiếp tục.`); const updated=JSON.parse(JSON.stringify(freshItem)),prepared=[]; for(const op of ops){ if(!validatePositiveQty(op.qty))throw new Error(`${op.actionName}: số lượng phải lớn hơn 0.`); if(isStockDecreasingAction(tab,op.type)&&op.qty>stock+1e-9)throw new Error(`Không đủ tồn kho để ${op.actionName.toLowerCase()}. Tồn hiện có: ${fmt(stock)} ${freshItem.unit}.`); const before=stock; if(tab==='raw'){if(op.type==='import')stock+=op.qty;else stock-=op.qty;}else{if(op.type==='production'||op.type==='return')stock+=op.qty;else stock-=op.qty;} applyDraftToItem(updated,tab,op.type,op.qty); if(stock< -1e-9)throw new Error(`${op.actionName} làm tồn kho âm.`); prepared.push({...op,before,after:stock}); }
- const now=Date.now(),userName=`${currentUser.name} (${roleLabel(currentUser.role)})`; const payload=prepared.map((p,i)=>({id:'log_'+now+'_'+Math.random().toString(36).slice(2,9)+'_'+i,tab,itemid:freshItem.id,item:freshItem.name,action:p.actionName,qty:p.qty,unit:freshItem.unit,before:p.before,after:p.after,actiontype:p.type,unitcost:tab==='raw'&&p.type==='import'?rawUnitCost(freshItem):0,timestamp:now+i,datekey:localDateKey(),userid:currentUser.id||currentUser.username||'',user:userName,time:dateTime(),editedat:null,editedby:null})); const {error:insertError}=await supabaseClient.from('logs').insert(payload); if(insertError)throw new Error(`Không thể ghi Nhật Ký Cloud: ${insertError.message||insertError}`); const {error:itemError}=await supabaseClient.from(itemTable).update(updated).eq('id',freshItem.id); if(itemError)console.warn('Không cập nhật được cột tổng; Ledger vẫn dùng Log Cloud:',itemError.message||itemError); const localItem=arr.find(x=>sameLedgerItemId(x.id,id));if(localItem)Object.assign(localItem,updated); const localLogs=payload.map(l=>({...l,itemId:l.itemid,actionType:l.actiontype,userId:l.userid,username:currentUser.username||'',dateKey:l.datekey,editedAt:null,editedBy:null,editDetail:'',time:l.time,unitCost:Number(l.unitcost||0)})); logs=[...localLogs,...logs];sortLogsNewestFirst();saveLocalState();clearTableDraft(tab,id);render();showSuccessToast(`${prepared.length} giao dịch đã được ghi nhận`); }catch(err){ console.error('Lỗi lưu bảng:',err);showInventoryNotice('❌ CHƯA LƯU ĐƯỢC',`${err.message||err}\n\nDữ liệu trên dòng chưa được ghi nhận.`); }finally{tableSavingKey='';} }
+ const now=Date.now(),userName=`${currentUser.name} (${roleLabel(currentUser.role)})`; const payload=prepared.map((p,i)=>({id:'log_'+now+'_'+Math.random().toString(36).slice(2,9)+'_'+i,tab,itemid:freshItem.id,item:freshItem.name,action:p.actionName,qty:p.qty,unit:freshItem.unit,before:p.before,after:p.after,actiontype:p.type,unitcost:tab==='raw'&&p.type==='import'?rawUnitCost(freshItem):0,conversionunit:tab==='raw'&&p.type==='export'?rawConversionUnit(freshItem):'',conversionqty:tab==='raw'&&p.type==='export'?rawConversionQty(freshItem):0,dosage:tab==='raw'&&p.type==='export'?rawUsagePerProduct(freshItem):0,wasteqty:tab==='raw'&&p.type==='export'?rawWasteQty(freshItem):0,yieldqty:tab==='raw'&&p.type==='export'?rawYieldPerSourceUnit(freshItem)*p.qty:0,timestamp:now+i,datekey:localDateKey(),userid:currentUser.id||currentUser.username||'',user:userName,time:dateTime(),editedat:null,editedby:null})); const {error:insertError}=await supabaseClient.from('logs').insert(payload); if(insertError)throw new Error(`Không thể ghi Nhật Ký Cloud: ${insertError.message||insertError}`); const {error:itemError}=await supabaseClient.from(itemTable).update(updated).eq('id',freshItem.id); if(itemError)console.warn('Không cập nhật được cột tổng; Ledger vẫn dùng Log Cloud:',itemError.message||itemError); const localItem=arr.find(x=>sameLedgerItemId(x.id,id));if(localItem)Object.assign(localItem,updated); const localLogs=payload.map(l=>({...l,itemId:l.itemid,actionType:l.actiontype,userId:l.userid,username:currentUser.username||'',dateKey:l.datekey,editedAt:null,editedBy:null,editDetail:'',time:l.time,unitCost:Number(l.unitcost||0)})); logs=[...localLogs,...logs];sortLogsNewestFirst();saveLocalState();clearTableDraft(tab,id);render();showSuccessToast(`${prepared.length} giao dịch đã được ghi nhận`); }catch(err){ console.error('Lỗi lưu bảng:',err);showInventoryNotice('❌ CHƯA LƯU ĐƯỢC',`${err.message||err}\n\nDữ liệu trên dòng chưa được ghi nhận.`); }finally{tableSavingKey='';} }
 function tableHeader(tab){ return tab==='raw'?`<thead><tr><th><div id="tableActiveGroup">Tất cả</div></th><th>Tồn đầu</th><th>Nhập kho</th><th>Xuất kho</th><th>Tồn kho</th><th>Xác nhận</th></tr></thead>`:`<thead><tr><th><div id="tableActiveGroup">Tất cả</div></th><th>Tồn đầu</th><th>Nấu thêm</th><th>Xuất bán</th><th>Thu hồi</th><th>Hủy</th><th>Tồn cuối</th><th>Xác nhận</th></tr></thead>`; }
 function tableRowRaw(item,report){ const key=tableDraftKey('raw',item.id),s=tableCurrentStats('raw',item); return `<tr class="data-row"><td><div class="item-cell-name">${tableEsc(item.name)}</div><div class="item-cell-unit">ĐVT: ${tableEsc(item.unit)}</div></td><td><div class="stock-static">${fmt(s.opening)}</div></td><td>${tableCellInput('raw',item,'import',report)}</td><td>${tableCellInput('raw',item,'export',report)}</td><td><div data-stock-end-key="${tableEsc(key)}" style="font-size:17px;font-weight:900;color:#0284c7">${fmt(tableStockEnd('raw',item))}</div></td><td><button type="button" data-save-key="${tableEsc(key)}" class="entry-save ${tableDraftHasData('raw',item.id)&&!report?'ready':''}" ${report||!tableDraftHasData('raw',item.id)?'disabled':''} onclick="saveTableRow('raw','${tableEsc(item.id)}')">Lưu</button></td></tr>`; }
 function tableRowFG(item,report){ const key=tableDraftKey('fg',item.id),s=tableCurrentStats('fg',item); return `<tr class="data-row"><td><div class="item-cell-name">${tableEsc(item.name)}</div><div class="item-cell-unit">ĐVT: ${tableEsc(item.unit)}</div></td><td><div class="stock-static">${fmt(s.opening)}</div></td><td>${tableCellInput('fg',item,'production',report)}</td><td>${tableCellInput('fg',item,'sales',report)}</td><td>${tableCellInput('fg',item,'return',report)}</td><td>${tableCellInput('fg',item,'waste',report)}</td><td><div data-stock-end-key="${tableEsc(key)}" style="font-size:17px;font-weight:900;color:#0284c7">${fmt(tableStockEnd('fg',item))}</div></td><td><button type="button" data-save-key="${tableEsc(key)}" class="entry-save ${tableDraftHasData('fg',item.id)&&!report?'ready':''}" ${report||!tableDraftHasData('fg',item.id)?'disabled':''} onclick="saveTableRow('fg','${tableEsc(item.id)}')">Lưu</button></td></tr>`; }
@@ -2747,6 +2864,7 @@ function auditView() {
             <span class="audit-status ${auditActionClass(l)}">${auditActionLabel(l)}</span>
           </div>
           <div class="audit-divider"></div>
+          ${l.tab==='raw' && normalizeActionType(l)==='export' && logConversionUnit(l) && logUsagePerProduct(l) ? `<div class="audit-conversion">↳ Quy đổi: 1 ${tableEsc(l.unit)} = ${fmt(logConversionQty(l))} ${tableEsc(logConversionUnit(l))} · ${fmt(logUsagePerProduct(l))} ${tableEsc(logConversionUnit(l))}/ly · hao hụt ${fmt(logWasteQty(l))} ${tableEsc(logConversionUnit(l))} · ≈ ${fmt(logYieldQty(l))} ly</div>` : ''}
           <div class="audit-detail-row">
             <div class="audit-group-name">${itemGroup}</div>
             <div class="audit-qty">${fmt(l.qty)} <span class="unit">${l.unit}</span></div>
@@ -2767,7 +2885,7 @@ function render() {
     <div class="app-container">
       <header>
         <div class="header-top"><div><div class="shop-title">Quản Lý Kho SB</div><div class="user-info">Xin chào, <b>${currentUser.name}</b></div></div><div class="role-badge">${roleLabel(currentUser.role)}</div></div>
-        ${isOwnerRole() ? `<div class="owner-tools"><button class="owner-tool-btn" onclick="openOwnerTool('reconcile')">📊 Đối chiếu Fabi</button><button class="owner-tool-btn" onclick="openOwnerTool('inventory')">🧾 Kiểm kê</button><button class="owner-tool-btn" onclick="openOwnerTool('cost')">💰 Giá vốn</button><button class="owner-tool-btn" onclick="openOwnerTool('costReport')">📈 Báo cáo tồn</button><button class="owner-tool-btn" onclick="openOrdering()">↕️ Sắp xếp món</button></div>` : ''}
+        ${isOwnerRole() ? `<div class="owner-tools"><button class="owner-tool-btn" onclick="openOwnerTool('reconcile')">📊 Đối chiếu Fabi</button><button class="owner-tool-btn" onclick="openOwnerTool('inventory')">🧾 Kiểm kê</button><button class="owner-tool-btn" onclick="openOwnerTool('cost')">💰 Giá vốn</button><button class="owner-tool-btn" onclick="openOwnerTool('reportSnapshot')">📌 Chốt kỳ báo cáo</button><button class="owner-tool-btn" onclick="openOwnerTool('costReport')">📈 Báo cáo tồn</button><button class="owner-tool-btn" onclick="openOrdering()">↕️ Sắp xếp món</button></div>` : ''}
         <div class="header-actions">
           ${currentUser.role === 'admin' ? `
             <button onclick="openAdmin('location')">⚙ GPS Quán</button>
