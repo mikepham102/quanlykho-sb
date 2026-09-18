@@ -103,7 +103,7 @@
     .audit-change { color:#9a3412; }
     .audit-edited-meta { margin-left:auto; white-space:nowrap; color:#c2410c; }
     /* Nhật Ký — thẻ giao dịch 2 bên, rõ người / mặt hàng / trạng thái */
-   .audit-transaction-card { background:#fff; border-radius:16px; padding:13px 14px; border:1px solid #d8e7f0; box-shadow:0 3px 12px rgba(15,23,42,.06); }
+  .audit-transaction-card { background:#fff; border-radius:16px; padding:13px 14px; border:1px solid #d8e7f0; box-shadow:0 3px 12px rgba(15,23,42,.06); }
     .audit-topline { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
     .audit-employee { color:#f8fafc; background:linear-gradient(135deg,#0f3d5e,#075985); padding:7px 11px; border-radius:10px; font-size:13px; font-weight:900; line-height:1.15; box-shadow:0 2px 5px rgba(7,89,133,.18); }
     .audit-time { color:#64748b; font-size:16px; font-weight:800; white-space:nowrap; }
@@ -147,8 +147,12 @@
 
 
     /* ===== Công cụ chủ quán: Đối chiếu & Kiểm kê ===== */
-    .owner-tools { display:flex; gap:8px; margin-top:10px; overflow-x:auto; padding-bottom:2px; }
-    .owner-tool-btn { flex:1; min-width:128px; background:#fff; color:var(--brand-blue-dark); border:1px solid rgba(255,255,255,.65); padding:8px 10px; border-radius:10px; font-size:12px; font-weight:800; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.08); }
+    .owner-tools { display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+    .owner-tool-group { display:flex; align-items:stretch; gap:7px; padding:7px; border-radius:13px; background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.16); overflow-x:auto; }
+    .owner-tool-group-label { flex:0 0 auto; display:flex; align-items:center; min-width:74px; padding:0 4px; color:#fff; font-size:9px; line-height:1.15; font-weight:900; text-transform:uppercase; letter-spacing:.3px; }
+    .owner-tool-btn { flex:1; min-width:112px; background:#fff; color:var(--brand-blue-dark); border:1px solid rgba(255,255,255,.65); padding:8px 9px; border-radius:10px; font-size:11px; font-weight:800; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.08); white-space:nowrap; }
+    .owner-tool-standalone { display:flex; gap:7px; }
+    .owner-tool-standalone .owner-tool-btn { min-width:112px; }
     .tool-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin:10px 0 12px; }
     .tool-summary-box { background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:9px 6px; text-align:center; }
     .tool-summary-box small { display:block; color:var(--text-muted); font-size:10px; font-weight:700; }
@@ -2885,13 +2889,28 @@ function render() {
     <div class="app-container">
       <header>
         <div class="header-top"><div><div class="shop-title">Quản Lý Kho SB</div><div class="user-info">Xin chào, <b>${currentUser.name}</b></div></div><div class="role-badge">${roleLabel(currentUser.role)}</div></div>
-        ${isOwnerRole() ? `<div class="owner-tools"><button class="owner-tool-btn" onclick="openOwnerTool('reconcile')">📊 Đối chiếu Fabi</button><button class="owner-tool-btn" onclick="openOwnerTool('inventory')">🧾 Kiểm kê</button><button class="owner-tool-btn" onclick="openOwnerTool('cost')">💰 Giá vốn</button><button class="owner-tool-btn" onclick="openOwnerTool('reportSnapshot')">📌 Chốt kỳ báo cáo</button><button class="owner-tool-btn" onclick="openOwnerTool('costReport')">📈 Báo cáo tồn</button><button class="owner-tool-btn" onclick="openOrdering()">↕️ Sắp xếp món</button></div>` : ''}
+        ${isOwnerRole() ? `<div class="owner-tools">
+          <div class="owner-tool-group">
+            <div class="owner-tool-group-label">📊 Báo cáo<br>& kiểm soát</div>
+            <button class="owner-tool-btn" onclick="openOwnerTool('reconcile')">📊 Đối chiếu Fabi</button>
+            <button class="owner-tool-btn" onclick="openOwnerTool('costReport')">📈 Báo cáo tồn</button>
+            <button class="owner-tool-btn" onclick="openOwnerTool('cost')">💰 Giá vốn</button>
+          </div>
+          <div class="owner-tool-standalone">
+            <button class="owner-tool-btn" onclick="openOwnerTool('inventory')">🧾 Kiểm kê</button>
+          </div>
+          <div class="owner-tool-group">
+            <div class="owner-tool-group-label">🧾 Danh mục<br>& sắp xếp</div>
+            <button class="owner-tool-btn" onclick="openOrdering()">↕️ Sắp xếp món</button>
+            ${currentUser.role === 'admin' ? `<button class="owner-tool-btn" onclick="openAdmin('items')">🧾 Mặt Hàng</button>` : ''}
+          </div>
+          ${currentUser.role === 'admin' ? `<div class="owner-tool-group">
+            <div class="owner-tool-group-label">👥 Nhân sự<br>& vị trí</div>
+            <button class="owner-tool-btn" onclick="openAdmin('accounts')">👥 Nhân Viên</button>
+            <button class="owner-tool-btn" onclick="openAdmin('location')">⚙ GPS Quán</button>
+          </div>` : ''}
+        </div>` : ''}
         <div class="header-actions">
-          ${currentUser.role === 'admin' ? `
-            <button onclick="openAdmin('location')">⚙ GPS Quán</button>
-            <button onclick="openAdmin('accounts')">👥 Nhân Viên</button>
-            <button onclick="openAdmin('items')">🧾 Mặt Hàng</button>
-          ` : ''}
           <button class="btn-logout" onclick="logout()">Thoát</button>
         </div>
       </header>
