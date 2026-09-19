@@ -623,6 +623,13 @@ function applyLedgerEvent(tab, stock, log) {
   return stock;
 }
 
+function normalizeLedgerNumber(value, epsilon = 0.000001) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  if (Math.abs(n) < epsilon) return 0;
+  return Number(n.toFixed(6));
+}
+
 function calculateStockFromLogs(tab, item, sourceLogs, endTime = Infinity) {
   const all = (sourceLogs || [])
     .filter(l => logBelongsToItem(l, tab, item))
@@ -658,8 +665,9 @@ function calculateStockFromLogs(tab, item, sourceLogs, endTime = Infinity) {
     } else {
       stock = applyLedgerEvent(tab, stock, l);
     }
+    stock = normalizeLedgerNumber(stock);
   }
-  return stock;
+  return normalizeLedgerNumber(stock);
 }
 
 function calculateStock(tab, item, endTime = Infinity) {
@@ -1324,11 +1332,14 @@ async function confirmAllDrafts() {
     // Tất cả validation + before/after chạy trên Ledger Cloud mới nhất.
     const trial = JSON.parse(JSON.stringify(freshItem));
     const prepared = [];
-    let trialStock = calculateStockFromLogs(draftTab, freshItem, freshLogs);
+    let trialStock = normalizeLedgerNumber(calculateStockFromLogs(draftTab, freshItem, freshLogs));
 
-    if (trialStock < -1e-9) {
-      return showInventoryNotice('⚠️ TỒN KHO ĐANG ÂM',
-        `${freshItem.name} đang có tồn Ledger ${fmt(trialStock)} ${freshItem.unit}.\n\nHệ thống không cho phép tiếp tục xuất/bán. Hãy kiểm tra nhật ký hoặc thực hiện kiểm kê.`);
+    // Không khóa toàn bộ giao dịch chỉ vì dữ liệu lịch sử đang âm.
+    // Giao dịch tăng tồn (Nấu thêm/Thu hồi/Nhập kho) được phép dùng để phục hồi Ledger.
+    // Chỉ giao dịch làm giảm tồn mới bị chặn nếu vượt quá tồn khả dụng.
+    if (!Number.isFinite(trialStock)) {
+      return showInventoryNotice('❌ KHÔNG THỂ XÁC ĐỊNH TỒN KHO',
+        'Ledger Cloud trả về giá trị không hợp lệ. Dữ liệu chưa được lưu.');
     }
     for (const draft of drafts) {
       const qty = Number(draft.qty);
@@ -1337,9 +1348,9 @@ async function confirmAllDrafts() {
           'Số lượng phải lớn hơn 0.\n\nDữ liệu chưa được lưu.');
       }
 
-      const before = trialStock;
+      const before = normalizeLedgerNumber(trialStock);
       const decreasing = isStockDecreasingAction(draftTab, draft.type);
-      if (decreasing && qty > before + 1e-9) {
+      if (decreasing && qty > Math.max(0, before) + 1e-9) {
         const verb = draftTab === 'raw'
           ? 'xuất kho'
           : (draft.type === 'sales' ? 'xuất bán' : 'hủy món');
@@ -1360,7 +1371,8 @@ async function confirmAllDrafts() {
         else return showInventoryNotice('⚠️ THAO TÁC KHÔNG HỢP LỆ', 'Thành phẩm chỉ cho phép Xuất bán, Nấu thêm, Thu hồi hoặc Hủy món.');
       }
 
-      if (after < -1e-9) {
+      after = normalizeLedgerNumber(after);
+      if (decreasing && after < 0) {
         return showInventoryNotice(
           '⚠️ GIAO DỊCH BỊ CHẶN',
           `${actionLabel(draftTab, draft.type)} ${fmt(qty)} ${freshItem.unit} làm tồn kho âm.\nTồn sau dự kiến: ${fmt(after)} ${freshItem.unit}.\n\nKhông có dữ liệu nào được ghi.`
@@ -2651,7 +2663,7 @@ function initTableStickyGroup(){
   requestAnimationFrame(()=>{buildFloatingHeader();update();});
 }
 function updateTableRowUI(tab,id){ const key=tableDraftKey(tab,id),d=tableDrafts[key]||{},btn=document.querySelector(`[data-save-key="${CSS.escape(key)}"]`),end=document.querySelector(`[data-stock-end-key="${CSS.escape(key)}"]`),has=Object.values(d).some(v=>Number(v)>0); if(btn){btn.classList.toggle('ready',has&&!tableSavingKey);btn.disabled=!has||!!tableSavingKey;btn.textContent=tableSavingKey===key?'⏳':'Lưu';} if(end){const item=(tab==='raw'?raw:fg).find(x=>sameLedgerItemId(x.id,id));if(item)end.textContent=fmt(tableStockEnd(tab,item));} }
-async function saveTableRow(tab,id){ const key=tableDraftKey(tab,id); if(tableSavingKey)return; if(isDateFilterActive())return showInventoryNotice('📅 Đang xem báo cáo','Hãy bấm “Về hiện tại” trước khi nhập liệu.'); const arr=tab==='raw'?raw:fg,item=arr.find(x=>sameLedgerItemId(x.id,id)); if(!item)return showInventoryNotice('❌ Không tìm thấy mặt hàng','Mặt hàng không còn tồn tại trên màn hình.'); const d={...(tableDrafts[key]||{})}; const ops=(tab==='raw'?[{type:'import',qty:Number(d.import||0),actionName:'＋ Nhập kho'},{type:'export',qty:Number(d.export||0),actionName:'− Xuất kho'}]:[{type:'production',qty:Number(d.production||0),actionName:'＋ Nấu thêm'},{type:'sales',qty:Number(d.sales||0),actionName:'− Xuất bán'},{type:'return',qty:Number(d.return||0),actionName:'↩ Thu hồi'},{type:'waste',qty:Number(d.waste||0),actionName:'− Hủy món'}]).filter(o=>o.qty>0); if(!ops.length)return; tableSavingKey=key;updateTableRowUI(tab,id); try{ const itemTable=tab==='raw'?'raw_items':'fg_items'; const {data:freshItem,error:freshError}=await supabaseClient.from(itemTable).select('*').eq('id',item.id).maybeSingle(); if(freshError||!freshItem)throw new Error(freshError?.message||'Không tìm thấy dữ liệu mặt hàng trên Cloud.'); const {data:cloudLogs,error:logsError}=await supabaseClient.from('logs').select('*').eq('tab',tab); if(logsError)throw new Error(`Không thể đọc Nhật Ký Cloud: ${logsError.message||logsError}`); const freshLogs=(cloudLogs||[]).map(l=>({id:l.id,tab:l.tab,itemId:l.itemid,item:l.item,action:l.action,qty:Number(l.qty||0),unit:l.unit,before:Number(l.before||0),after:Number(l.after||0),actionType:l.actiontype,user:l.user,username:l.userid||'',timestamp:Number(l.timestamp||0),dateKey:l.datekey||'',editedAt:l.editedat||null,editedBy:l.editedby||null,time:l.time||''})); let stock=calculateStockFromLogs(tab,freshItem,freshLogs); if(stock< -1e-9)throw new Error(`Tồn Ledger của ${freshItem.name} đang âm. Hãy kiểm kê lại trước khi tiếp tục.`); const updated=JSON.parse(JSON.stringify(freshItem)),prepared=[]; for(const op of ops){ if(!validatePositiveQty(op.qty))throw new Error(`${op.actionName}: số lượng phải lớn hơn 0.`); if(isStockDecreasingAction(tab,op.type)&&op.qty>stock+1e-9)throw new Error(`Không đủ tồn kho để ${op.actionName.toLowerCase()}. Tồn hiện có: ${fmt(stock)} ${freshItem.unit}.`); const before=stock; if(tab==='raw'){if(op.type==='import')stock+=op.qty;else stock-=op.qty;}else{if(op.type==='production'||op.type==='return')stock+=op.qty;else stock-=op.qty;} applyDraftToItem(updated,tab,op.type,op.qty); if(stock< -1e-9)throw new Error(`${op.actionName} làm tồn kho âm.`); prepared.push({...op,before,after:stock}); }
+async function saveTableRow(tab,id){ const key=tableDraftKey(tab,id); if(tableSavingKey)return; if(isDateFilterActive())return showInventoryNotice('📅 Đang xem báo cáo','Hãy bấm “Về hiện tại” trước khi nhập liệu.'); const arr=tab==='raw'?raw:fg,item=arr.find(x=>sameLedgerItemId(x.id,id)); if(!item)return showInventoryNotice('❌ Không tìm thấy mặt hàng','Mặt hàng không còn tồn tại trên màn hình.'); const d={...(tableDrafts[key]||{})}; const ops=(tab==='raw'?[{type:'import',qty:Number(d.import||0),actionName:'＋ Nhập kho'},{type:'export',qty:Number(d.export||0),actionName:'− Xuất kho'}]:[{type:'production',qty:Number(d.production||0),actionName:'＋ Nấu thêm'},{type:'sales',qty:Number(d.sales||0),actionName:'− Xuất bán'},{type:'return',qty:Number(d.return||0),actionName:'↩ Thu hồi'},{type:'waste',qty:Number(d.waste||0),actionName:'− Hủy món'}]).filter(o=>o.qty>0); if(!ops.length)return; tableSavingKey=key;updateTableRowUI(tab,id); try{ const itemTable=tab==='raw'?'raw_items':'fg_items'; const {data:freshItem,error:freshError}=await supabaseClient.from(itemTable).select('*').eq('id',item.id).maybeSingle(); if(freshError||!freshItem)throw new Error(freshError?.message||'Không tìm thấy dữ liệu mặt hàng trên Cloud.'); const {data:cloudLogs,error:logsError}=await supabaseClient.from('logs').select('*').eq('tab',tab); if(logsError)throw new Error(`Không thể đọc Nhật Ký Cloud: ${logsError.message||logsError}`); const freshLogs=(cloudLogs||[]).map(l=>({id:l.id,tab:l.tab,itemId:l.itemid,item:l.item,action:l.action,qty:Number(l.qty||0),unit:l.unit,before:Number(l.before||0),after:Number(l.after||0),actionType:l.actiontype,user:l.user,username:l.userid||'',timestamp:Number(l.timestamp||0),dateKey:l.datekey||'',editedAt:l.editedat||null,editedBy:l.editedby||null,time:l.time||''})); let stock=normalizeLedgerNumber(calculateStockFromLogs(tab,freshItem,freshLogs)); const updated=JSON.parse(JSON.stringify(freshItem)),prepared=[]; for(const op of ops){ if(!validatePositiveQty(op.qty))throw new Error(`${op.actionName}: số lượng phải lớn hơn 0.`); if(isStockDecreasingAction(tab,op.type)&&op.qty>stock+1e-9)throw new Error(`Không đủ tồn kho để ${op.actionName.toLowerCase()}. Tồn hiện có: ${fmt(stock)} ${freshItem.unit}.`); const before=normalizeLedgerNumber(stock); if(tab==='raw'){if(op.type==='import')stock+=op.qty;else stock-=op.qty;}else{if(op.type==='production'||op.type==='return')stock+=op.qty;else stock-=op.qty;} stock=normalizeLedgerNumber(stock); applyDraftToItem(updated,tab,op.type,op.qty); if(isStockDecreasingAction(tab,op.type)&&stock < 0)throw new Error(`${op.actionName} làm tồn kho âm.`); prepared.push({...op,before,after:stock}); }
  const now=Date.now(),userName=`${currentUser.name} (${roleLabel(currentUser.role)})`; const payload=prepared.map((p,i)=>({id:'log_'+now+'_'+Math.random().toString(36).slice(2,9)+'_'+i,tab,itemid:freshItem.id,item:freshItem.name,action:p.actionName,qty:p.qty,unit:freshItem.unit,before:p.before,after:p.after,actiontype:p.type,unitcost:tab==='raw'&&p.type==='import'?rawUnitCost(freshItem):0,conversionunit:tab==='raw'&&p.type==='export'?rawConversionUnit(freshItem):'',conversionqty:tab==='raw'&&p.type==='export'?rawConversionQty(freshItem):0,dosage:tab==='raw'&&p.type==='export'?rawUsagePerProduct(freshItem):0,wasteqty:tab==='raw'&&p.type==='export'?rawWasteQty(freshItem):0,yieldqty:tab==='raw'&&p.type==='export'?rawYieldPerSourceUnit(freshItem)*p.qty:0,timestamp:now+i,datekey:localDateKey(),userid:currentUser.id||currentUser.username||'',user:userName,time:dateTime(),editedat:null,editedby:null})); const {error:insertError}=await supabaseClient.from('logs').insert(payload); if(insertError)throw new Error(`Không thể ghi Nhật Ký Cloud: ${insertError.message||insertError}`); const {error:itemError}=await supabaseClient.from(itemTable).update(updated).eq('id',freshItem.id); if(itemError)console.warn('Không cập nhật được cột tổng; Ledger vẫn dùng Log Cloud:',itemError.message||itemError); const localItem=arr.find(x=>sameLedgerItemId(x.id,id));if(localItem)Object.assign(localItem,updated); const localLogs=payload.map(l=>({...l,itemId:l.itemid,actionType:l.actiontype,userId:l.userid,username:currentUser.username||'',dateKey:l.datekey,editedAt:null,editedBy:null,editDetail:'',time:l.time,unitCost:Number(l.unitcost||0)})); logs=[...localLogs,...logs];sortLogsNewestFirst();saveLocalState();clearTableDraft(tab,id);render();showSuccessToast(`${prepared.length} giao dịch đã được ghi nhận`); }catch(err){ console.error('Lỗi lưu bảng:',err);showInventoryNotice('❌ CHƯA LƯU ĐƯỢC',`${err.message||err}\n\nDữ liệu trên dòng chưa được ghi nhận.`); }finally{tableSavingKey='';} }
 function tableHeader(tab){ return tab==='raw'?`<thead><tr><th><div id="tableActiveGroup">Tất cả</div></th><th>Tồn đầu</th><th>Nhập kho</th><th>Xuất kho</th><th>Tồn kho</th><th>Xác nhận</th></tr></thead>`:`<thead><tr><th><div id="tableActiveGroup">Tất cả</div></th><th>Tồn đầu</th><th>Nấu thêm</th><th>Xuất bán</th><th>Thu hồi</th><th>Hủy</th><th>Tồn cuối</th><th>Xác nhận</th></tr></thead>`; }
 function tableRowRaw(item,report){ const key=tableDraftKey('raw',item.id),s=tableCurrentStats('raw',item); return `<tr class="data-row"><td><div class="item-cell-name">${tableEsc(item.name)}</div><div class="item-cell-unit">ĐVT: ${tableEsc(item.unit)}</div></td><td><div class="stock-static">${fmt(s.opening)}</div></td><td>${tableCellInput('raw',item,'import',report)}</td><td>${tableCellInput('raw',item,'export',report)}</td><td><div data-stock-end-key="${tableEsc(key)}" style="font-size:17px;font-weight:900;color:#0284c7">${fmt(tableStockEnd('raw',item))}</div></td><td><button type="button" data-save-key="${tableEsc(key)}" class="entry-save ${tableDraftHasData('raw',item.id)&&!report?'ready':''}" ${report||!tableDraftHasData('raw',item.id)?'disabled':''} onclick="saveTableRow('raw','${tableEsc(item.id)}')">Lưu</button></td></tr>`; }
