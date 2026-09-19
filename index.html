@@ -103,7 +103,7 @@
     .audit-change { color:#9a3412; }
     .audit-edited-meta { margin-left:auto; white-space:nowrap; color:#c2410c; }
     /* Nhật Ký — thẻ giao dịch 2 bên, rõ người / mặt hàng / trạng thái */
-  .audit-transaction-card { background:#fff; border-radius:16px; padding:13px 14px; border:1px solid #d8e7f0; box-shadow:0 3px 12px rgba(15,23,42,.06); }
+   .audit-transaction-card { background:#fff; border-radius:16px; padding:13px 14px; border:1px solid #d8e7f0; box-shadow:0 3px 12px rgba(15,23,42,.06); }
     .audit-topline { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
     .audit-employee { color:#f8fafc; background:linear-gradient(135deg,#0f3d5e,#075985); padding:7px 11px; border-radius:10px; font-size:13px; font-weight:900; line-height:1.15; box-shadow:0 2px 5px rgba(7,89,133,.18); }
     .audit-time { color:#64748b; font-size:16px; font-weight:800; white-space:nowrap; }
@@ -2676,7 +2676,7 @@ function confirmTableEntry(tab,id,type){
   closeModal();
   render();
 }
-function tableStockEnd(tab,item){ const base=tab==='raw'?getStockRaw(item):getStockFG(item),d=tableDrafts[tableDraftKey(tab,item.id)]||{}; return tab==='raw'?Math.max(0,base+Number(d.import||0)-Number(d.export||0)):Math.max(0,base+Number(d.production||0)-Number(d.sales||0)+Number(d.return||0)-Number(d.waste||0)); }
+function tableStockEnd(tab,item){ const d=tableDrafts[tableDraftKey(tab,item.id)]||{}; const range=dateRangeForView(); const report=isDateFilterActive(); const base=report?stockAtDate(tab,item,range.end):stockAtDate(tab,item,localDateKey()); if(report)return Math.max(0,base); return tab==='raw'?Math.max(0,base+Number(d.import||0)-Number(d.export||0)):Math.max(0,base+Number(d.production||0)-Number(d.sales||0)+Number(d.return||0)-Number(d.waste||0)); }
 function tableCurrentStats(tab,item){ return tab==='raw'?getRawStatsByDate(item):getFGStatsByDate(item); }
 function tableHeaderGroup(text){ const el=document.getElementById('tableActiveGroup'); if(el) el.textContent=text||'Tất cả'; }
 function initTableStickyGroup(){
