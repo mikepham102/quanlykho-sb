@@ -103,7 +103,7 @@
     .audit-change { color:#9a3412; }
     .audit-edited-meta { margin-left:auto; white-space:nowrap; color:#c2410c; }
     /* Nhật Ký — thẻ giao dịch 2 bên, rõ người / mặt hàng / trạng thái */
-   .audit-transaction-card { background:#fff; border-radius:16px; padding:13px 14px; border:1px solid #d8e7f0; box-shadow:0 3px 12px rgba(15,23,42,.06); }
+    .audit-transaction-card { background:#fff; border-radius:16px; padding:13px 14px; border:1px solid #d8e7f0; box-shadow:0 3px 12px rgba(15,23,42,.06); }
     .audit-topline { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
     .audit-employee { color:#f8fafc; background:linear-gradient(135deg,#0f3d5e,#075985); padding:7px 11px; border-radius:10px; font-size:13px; font-weight:900; line-height:1.15; box-shadow:0 2px 5px rgba(7,89,133,.18); }
     .audit-time { color:#64748b; font-size:16px; font-weight:800; white-space:nowrap; }
@@ -146,13 +146,15 @@
     .nav-item.active {background-color: #0097d2; color:#fff; font-weight: 700; }
 
 
-    /* ===== Công cụ chủ quán: Đối chiếu & Kiểm kê ===== */
-    .owner-tools { display:flex; flex-direction:column; gap:8px; margin-top:10px; }
-    .owner-tool-group { display:flex; align-items:stretch; gap:7px; padding:7px; border-radius:13px; background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.16); overflow-x:auto; }
-    .owner-tool-group-label { flex:0 0 auto; display:flex; align-items:center; min-width:74px; padding:0 4px; color:#fff; font-size:9px; line-height:1.15; font-weight:900; text-transform:uppercase; letter-spacing:.3px; }
+    /* ===== Công cụ chủ quán: gọn theo nhóm ===== */
+    .owner-tools { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; margin-top:10px; }
+    .owner-tool-group, .owner-tool-standalone { min-width:0; }
+    .owner-group-btn { width:100%; min-height:54px; background:#fff; color:var(--brand-blue-dark); border:1px solid rgba(255,255,255,.75); padding:9px 10px; border-radius:12px; font-size:11px; font-weight:900; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.08); text-align:left; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .owner-group-btn span { display:flex; flex-direction:column; gap:2px; }
+    .owner-group-btn small { color:#64748b; font-size:8px; font-weight:700; }
+    .owner-group-btn .owner-arrow { font-size:16px; color:#94a3b8; }
     .owner-tool-btn { flex:1; min-width:112px; background:#fff; color:var(--brand-blue-dark); border:1px solid rgba(255,255,255,.65); padding:8px 9px; border-radius:10px; font-size:11px; font-weight:800; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.08); white-space:nowrap; }
-    .owner-tool-standalone { display:flex; gap:7px; }
-    .owner-tool-standalone .owner-tool-btn { min-width:112px; }
+    @media(max-width:420px){ .owner-tools{grid-template-columns:1fr;} }
     .tool-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin:10px 0 12px; }
     .tool-summary-box { background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:9px 6px; text-align:center; }
     .tool-summary-box small { display:block; color:var(--text-muted); font-size:10px; font-weight:700; }
@@ -2136,14 +2138,24 @@ async function deleteLog(id) {
 }
 
 // ===== ĐỐI CHIẾU FABI & KIỂM KÊ =====
+function openOwnerGroup(group){
+  if(!currentUser||!isOwnerRole())return;
+  if(group==='reports'){openModal(`<div class="sb-modal-wrap"><div class="sb-modal-title"><div><h2>📊 Báo cáo & kiểm soát</h2><p>Các công cụ quản trị và kiểm soát dữ liệu kho.</p></div><button class="sb-x" onclick="closeModal()">×</button></div><div class="report-snapshot-menu"><button onclick="openModal(sbFabiView())"><b>📊 Đối chiếu Fabi</b><span>Bán hàng → truy xuất ngược</span></button><button onclick="openModal(rawCostReportView())"><b>📈 Báo cáo tồn</b><span>Tiền hàng nguyên liệu</span></button><button onclick="openModal(rawCostView())"><b>💰 Giá vốn</b><span>Giá mua & quy đổi</span></button><button onclick="openModal(recipeCenterView('cook'))"><b>🧪 Công thức & liên kết</b><span>Nấu · Món · Kiểm tra liên kết</span></button></div><div class="sb-form-hint">Công thức nấu, Công thức món và Kiểm tra liên kết nằm trong cùng một khu vực vì chúng tạo thành một chuỗi nghiệp vụ thống nhất.</div><div class="sb-footer"><button class="sb-primary" onclick="closeModal()">Đóng</button></div></div>`);return;}
+  if(group==='catalog'){openModal(`<div class="sb-modal-wrap"><div class="sb-modal-title"><div><h2>🧾 Danh mục & sắp xếp</h2><p>Quản lý danh mục hiển thị và thứ tự món.</p></div><button class="sb-x" onclick="closeModal()">×</button></div><div class="report-snapshot-menu"><button onclick="closeModal();openOrdering()"><b>↕️ Sắp xếp món</b><span>Thứ tự hiển thị</span></button>${currentUser.role==='admin'?`<button onclick="closeModal();openAdmin('items')"><b>🧾 Mặt hàng</b><span>Danh mục kho</span></button>`:''}</div><div class="sb-footer"><button class="sb-primary" onclick="closeModal()">Đóng</button></div></div>`);return;}
+  if(group==='people'){openModal(`<div class="sb-modal-wrap"><div class="sb-modal-title"><div><h2>👥 Nhân sự & vị trí</h2><p>Quản lý tài khoản nhân viên và vị trí cửa hàng.</p></div><button class="sb-x" onclick="closeModal()">×</button></div><div class="report-snapshot-menu"><button onclick="closeModal();openAdmin('accounts')"><b>👥 Nhân viên</b><span>Tài khoản & quyền</span></button><button onclick="closeModal();openAdmin('location')"><b>⚙ GPS quán</b><span>Vị trí xác thực</span></button></div><div class="sb-footer"><button class="sb-primary" onclick="closeModal()">Đóng</button></div></div>`);}
+}
+
 function openOwnerTool(tool) {
   if (!currentUser) return;
   if (!isOwnerRole()) return showInventoryNotice('⚠️ Không có quyền', 'Chỉ tài khoản Admin/Owner mới được sử dụng các công cụ Owner.');
-  if (tool === 'reconcile') openModal(reconcileView());
+  if (tool === 'reconcile') openModal(sbFabiView());
   if (tool === 'inventory') openModal(inventoryView());
   if (tool === 'cost') openModal(rawCostView());
   if (tool === 'costReport') openModal(rawCostReportView());
   if (tool === 'reportSnapshot') openModal(reportSnapshotMenuView());
+  if (tool === 'recipes') openModal(recipeCenterView('cook'));
+  if (tool === 'dishes') openModal(recipeCenterView('dish'));
+  if (tool === 'integrity') openModal(recipeIntegrityView());
 }
 
 function rawCostView() {
@@ -2153,144 +2165,21 @@ function rawCostView() {
     const items = sortItemsForDisplay(raw.filter(x => (x.group || 'Khác') === group));
     if (!items.length) return '';
     return `<div class="tool-section-title">${group}</div>${items.map(x => {
-      const c = rawConversionQty(x), u = rawConversionUnit(x), d = rawUsagePerProduct(x), w = rawWasteQty(x);
-      const y = rawYieldPerSourceUnit(x);
-      return `<div class="cost-row">
-        <div class="cost-item-head"><div><div class="tool-name">${tableEsc(x.name)}</div><div class="tool-unit">ĐVT nhập/xuất: ${tableEsc(x.unit)}</div></div>
-          <div class="cost-input-wrap"><input id="cost_${tableEsc(x.id)}" class="tool-input cost-input" type="number" min="0" step="1" value="${rawUnitCost(x) || ''}" placeholder="0"><span>đ / ${tableEsc(x.unit)}</span></div>
-        </div>
-        <div class="cost-conversion-grid">
-          <div><label>Đơn vị quy đổi</label><input id="convunit_${tableEsc(x.id)}" class="tool-input" type="text" value="${tableEsc(u)}" placeholder="ml, gam..."></div>
-          <div><label>Số lượng quy đổi</label><input id="convqty_${tableEsc(x.id)}" class="tool-input" type="number" min="0.001" step="any" value="${c || ''}" placeholder="1000"></div>
-          <div><label>Định mức / 1 ly</label><input id="dosage_${tableEsc(x.id)}" class="tool-input" type="number" min="0.001" step="any" value="${d || ''}" placeholder="20"></div>
-          <div><label>Hao hụt / ${tableEsc(x.unit)}</label><input id="waste_${tableEsc(x.id)}" class="tool-input" type="number" min="0" step="any" value="${w || ''}" placeholder="50"></div>
-        </div>
-        <div class="cost-yield-preview">${c && u && d ? `1 ${tableEsc(x.unit)} → ${fmt(c)} ${tableEsc(u)} · ${fmt(d)} ${tableEsc(u)}/ly · hao hụt ${fmt(w)} ${tableEsc(u)} · <b>≈ ${fmt(y)} ly</b>` : 'Chưa đủ định mức quy đổi để tính số ly.'}</div>
-        <div class="cost-current">Giá đang dùng: <b>${rawUnitCost(x) ? fmtMoney(rawUnitCost(x)) : 'Chưa đặt'}</b></div>
-      </div>`;
+      const c = rawConversionQty(x), u = rawConversionUnit(x);
+      return `<div class="cost-row"><div class="cost-item-head"><div><div class="tool-name">${tableEsc(x.name)}</div><div class="tool-unit">ĐVT nhập/xuất: ${tableEsc(x.unit)}</div></div><div class="cost-input-wrap"><input id="cost_${tableEsc(x.id)}" class="tool-input cost-input" type="number" min="0" step="1" value="${rawUnitCost(x) || ''}" placeholder="0"><span>đ / ${tableEsc(x.unit)}</span></div></div><div class="cost-conversion-grid"><div><label>Đơn vị quy đổi</label><input id="convunit_${tableEsc(x.id)}" class="tool-input" type="text" value="${tableEsc(u)}" placeholder="ml, gam..."></div><div><label>Số lượng quy đổi</label><input id="convqty_${tableEsc(x.id)}" class="tool-input" type="number" min="0.001" step="any" value="${c || ''}" placeholder="1000"></div></div><div class="cost-current">Giá đang dùng: <b>${rawUnitCost(x) ? fmtMoney(rawUnitCost(x)) : 'Chưa đặt'}</b>${c && u ? ` · 1 ${tableEsc(x.unit)} = ${fmt(c)} ${tableEsc(u)}` : ''}</div></div>`;
     }).join('')}`;
   }).join('');
-  return `<h2 style="font-size:18px">💰 Giá vốn & định mức nguyên liệu</h2><div class="tool-note">Chỉ Owner/Admin được thay đổi. <b>Giá vốn</b> là giá cho 1 ĐVT nhập kho. Nếu 1 chai quy đổi thành ml, nhập đơn vị và số lượng quy đổi; sau đó nhập định mức ml/ly và hao hụt để hệ thống tính số ly lý thuyết.</div>${rows || '<div class="empty-state">Chưa có nguyên liệu.</div>'}<div class="inventory-actions"><button class="inventory-close" onclick="closeModal()">Đóng</button><button class="inventory-save" onclick="saveRawCosts()">💾 Lưu giá vốn</button></div>`;
+  return `<h2 style="font-size:18px">💰 Giá vốn nguyên liệu</h2><div class="tool-note">Chỉ Owner/Admin được thay đổi. Nhập <b>giá vốn theo ĐVT nhập kho</b> và <b>quy đổi đơn vị</b>. Định mức sử dụng và hao hụt không đặt tại đây; chúng thuộc lớp công thức/đối soát nghiệp vụ.</div>${rows || '<div class="empty-state">Chưa có nguyên liệu.</div>'}<div class="inventory-actions"><button class="inventory-close" onclick="closeModal()">Đóng</button><button class="inventory-save" onclick="saveRawCosts()">💾 Lưu giá vốn</button></div>`;
 }
 
 async function saveRawCosts() {
   if (!isOwnerRole()) return showInventoryNotice('⚠️ Không có quyền', 'Chỉ tài khoản Admin/Owner mới được thay đổi giá vốn.');
-  const changes = [];
-  for (const x of raw) {
-    const costEl = document.getElementById('cost_' + x.id);
-    if (!costEl) continue;
-    const cost = Number(costEl.value || 0);
-    const unit = String(document.getElementById('convunit_' + x.id)?.value || '').trim();
-    const conv = Number(document.getElementById('convqty_' + x.id)?.value || 0);
-    const dosage = Number(document.getElementById('dosage_' + x.id)?.value || 0);
-    const waste = Number(document.getElementById('waste_' + x.id)?.value || 0);
-    if (!Number.isFinite(cost) || cost < 0) return showInventoryNotice('⚠️ Giá vốn không hợp lệ', `${x.name}: giá vốn phải từ 0 trở lên.`);
-    if (unit && (!Number.isFinite(conv) || conv <= 0)) return showInventoryNotice('⚠️ Định mức chưa hợp lệ', `${x.name}: khi có đơn vị quy đổi phải nhập số lượng quy đổi lớn hơn 0.`);
-    if (unit && (!Number.isFinite(dosage) || dosage <= 0)) return showInventoryNotice('⚠️ Định mức chưa hợp lệ', `${x.name}: phải nhập định mức sử dụng / 1 ly lớn hơn 0.`);
-    if (unit && (!Number.isFinite(waste) || waste < 0 || waste >= conv)) return showInventoryNotice('⚠️ Hao hụt chưa hợp lệ', `${x.name}: hao hụt phải từ 0 và nhỏ hơn ${fmt(conv)} ${unit}.`);
-    const changed = Math.abs(cost-rawUnitCost(x))>1e-9 || unit!==rawConversionUnit(x) || Math.abs(conv-rawConversionQty(x))>1e-9 || Math.abs(dosage-rawUsagePerProduct(x))>1e-9 || Math.abs(waste-rawWasteQty(x))>1e-9;
-    if (changed) changes.push({item:x,cost,unit,conv,dosage,waste});
-  }
-  if (!changes.length) return showInventoryNotice('ℹ️ Chưa có thay đổi', 'Không có giá vốn hoặc định mức nào được thay đổi.');
-  try {
-    // Ghi toàn bộ thay đổi lên Cloud trong MỘT lần. Chỉ cập nhật bộ nhớ/local
-    // sau khi Cloud xác nhận thành công, tránh trạng thái “máy đã lưu nhưng Cloud chưa lưu”.
-    const updates = changes.map(c => {
-      const updated = { ...c.item, unit_cost:c.cost, conversion_unit:c.unit, conversion_qty:c.conv || 0, usage_per_product:c.dosage || 0, waste_qty:c.waste || 0 };
-      delete updated.unitCost; delete updated.conversionUnit; delete updated.conversionQty; delete updated.usagePerProduct; delete updated.wasteQty;
-      return updated;
-    });
-    const {error}=await supabaseClient.from('raw_items').upsert(updates);
-    if(error) throw error;
-    updates.forEach(updated => {
-      const local = raw.find(x => sameLedgerItemId(x.id, updated.id));
-      if(local) Object.assign(local, updated);
-    });
-    saveLocalState();
-    openModal(rawCostView());
-    showSuccessToast(`Đã lưu ${changes.length} nguyên liệu`);
-  } catch(e) { showInventoryNotice('❌ CHƯA LƯU ĐƯỢC GIÁ VỐN', e.message || String(e)); }
+  const changes=[];
+  for(const x of raw){ const costEl=document.getElementById('cost_'+x.id); if(!costEl) continue; const cost=Number(costEl.value||0), unit=String(document.getElementById('convunit_'+x.id)?.value||'').trim(), conv=Number(document.getElementById('convqty_'+x.id)?.value||0); if(!Number.isFinite(cost)||cost<0)return showInventoryNotice('⚠️ Giá vốn không hợp lệ',`${x.name}: giá vốn phải từ 0 trở lên.`); if(unit&&(!Number.isFinite(conv)||conv<=0))return showInventoryNotice('⚠️ Quy đổi chưa hợp lệ',`${x.name}: khi có đơn vị quy đổi phải nhập số lượng quy đổi lớn hơn 0.`); const changed=Math.abs(cost-rawUnitCost(x))>1e-9||unit!==rawConversionUnit(x)||Math.abs(conv-rawConversionQty(x))>1e-9; if(changed)changes.push({item:x,cost,unit,conv}); }
+  if(!changes.length)return showInventoryNotice('ℹ️ Chưa có thay đổi','Không có giá vốn hoặc quy đổi nào được thay đổi.');
+  try{ const updates=changes.map(c=>{const updated={...c.item,unit_cost:c.cost,conversion_unit:c.unit,conversion_qty:c.conv||0}; delete updated.unitCost; delete updated.conversionUnit; delete updated.conversionQty; return updated;}); const {error}=await supabaseClient.from('raw_items').upsert(updates); if(error)throw error; updates.forEach(updated=>{const local=raw.find(x=>sameLedgerItemId(x.id,updated.id));if(local)Object.assign(local,updated);}); openModal(rawCostView()); }catch(err){console.error('saveRawCosts failed:',err);showInventoryNotice('❌ Không thể lưu',err.message||String(err));}
 }
 
-function reportSnapshotMenuView(){
-  if(!isOwnerRole()) return '';
-  const {month}=monthBounds(costMonth);
-  const prev=previousMonth(month);
-  const opening=getReportSnapshot(month,'opening');
-  const closing=getReportSnapshot(month,'closing');
-  const prevClosing=getReportSnapshot(prev,'closing');
-  return `<h2 style="font-size:18px">📌 Chốt dữ liệu báo cáo</h2><div class="tool-note">Phần này <b>tách hoàn toàn khỏi Kiểm kê</b>. Chốt ở đây chỉ tạo ảnh chụp tiền hàng đầu/cuối kỳ cho báo cáo tháng; không thay đổi Ledger và không ghi Nhật Ký.</div><div class="form-group"><label>Tháng</label><input type="month" value="${month}" onchange="costMonth=this.value;openModal(reportSnapshotMenuView())"></div><div class="report-snapshot-menu"><button type="button" onclick="openModal(reportSnapshotEditor('${month}','opening'))"><b>🔓 Đầu kỳ</b><span>${opening?'Đã chốt':'Chưa chốt'}</span></button><button type="button" onclick="openModal(reportSnapshotEditor('${month}','closing'))"><b>🔒 Cuối kỳ</b><span>${closing?'Đã chốt':'Chưa chốt'}</span></button></div>${prevClosing?`<div class="tool-note" style="margin-top:10px">Tháng ${prev} đã có <b>Cuối kỳ</b>. Khi chốt Đầu kỳ ${month}, hệ thống sẽ tự điền theo số lượng và giá trị Cuối kỳ tháng trước.</div>`:''}<div class="modal-buttons"><button class="btn-cancel" onclick="closeModal()">Đóng</button></div>`;
-}
-
-function monthBounds(month) {
-  const m = /^\d{4}-\d{2}$/.test(month) ? month : localDateKey().slice(0,7);
-  const [y,mm] = m.split('-').map(Number);
-  const start = new Date(y, mm-1, 1, 0,0,0,0).getTime();
-  const end = new Date(y, mm, 0, 23,59,59,999).getTime();
-  return {month:m,start,end};
-}
-function reportSnapshotKey(month,type){ return `${month}|${type}`; }
-function getReportSnapshot(month,type){ return inventoryReportSnapshots?.[reportSnapshotKey(month,type)] || null; }
-function reportSnapshotTotal(snapshot){ return Object.values(snapshot?.items || {}).reduce((sum,v)=>sum+Number(v?.value||0),0); }
-function reportSnapshotQty(snapshot,item){ return Number(snapshot?.items?.[item.id]?.qty ?? 0); }
-function rawImportValueInMonth(item,start,end) {
-  return logs.filter(l => l.tab==='raw' && logBelongsToItem(l,'raw',item) && normalizeActionType(l)==='import' && logTimestamp(l,0)>=start && logTimestamp(l,0)<=end)
-    .reduce((sum,l)=>sum + Number(l.qty||0) * logUnitCost(l),0);
-}
-function reportSnapshotView(month,type){
-  if(!isOwnerRole()) return '';
-  const snap=getReportSnapshot(month,type);
-  const label=type==='closing'?'Cuối kỳ':'Đầu kỳ';
-  const items=raw.map(x=>`<div class="report-snapshot-row"><div><b>${tableEsc(x.name)}</b><small>${tableEsc(x.group||'Khác')} · ${tableEsc(x.unit)}</small></div><div class="report-snapshot-value">${snap?.items?.[x.id]?`${fmt(snap.items[x.id].qty)} ${tableEsc(x.unit)} · ${fmtMoney(snap.items[x.id].value)}`:'—'}</div></div>`).join('');
-  return `<div class="report-snapshot-card"><div class="report-snapshot-head"><b>${label}</b><span>${snap?.savedAt ? `Đã chốt ${snap.savedAt}` : 'Chưa chốt'}</span></div>${snap?`<div class="tool-note" style="margin-top:8px">Dữ liệu này là <b>ảnh chụp báo cáo</b>, không thay đổi Tồn kho/Ledger và không tạo Nhật Ký.</div>`:''}<div>${items}</div></div>`;
-}
-function reportSnapshotEditor(month,type){
-  if(!isOwnerRole()) return '';
-  const previousClosing=getReportSnapshot(month,type==='opening'?'closing':'closing');
-  const existing=getReportSnapshot(month,type);
-  const rows=raw.map(x=>{
-    const inheritedItem=type==='opening' && !existing ? getReportSnapshot(previousMonth(month),'closing')?.items?.[x.id] : null;
-    const qty=existing?.items?.[x.id]?.qty ?? inheritedItem?.qty ?? '';
-    const inheritedValue=inheritedItem?.value ?? '';
-    return `<div class="report-snapshot-input-row"><div><b>${tableEsc(x.name)}</b><small>${tableEsc(x.unit)} · giá hiện tại ${fmtMoney(rawUnitCost(x))}/${tableEsc(x.unit)}${inheritedItem?' · kế thừa cuối kỳ tháng trước':''}</small></div><input id="reportqty_${tableEsc(x.id)}" data-inherited-qty="${inheritedItem?.qty ?? ''}" data-inherited-value="${inheritedValue}" class="tool-input" type="number" min="0" step="any" value="${qty}"></div>`;
-  }).join('');
-  return `<h3 style="font-size:15px;margin:14px 0 8px">${type==='closing'?'🔒 Chốt cuối kỳ':'🔓 Chốt đầu kỳ'} · ${month}</h3><div class="tool-note">Chốt dữ liệu báo cáo riêng biệt với <b>Kiểm kê</b>. Việc chốt này chỉ tạo dữ liệu tiền hàng cho báo cáo, <b>không thay đổi tồn kho thực tế và không ghi Nhật Ký</b>.</div><div>${rows}</div><div class="inventory-actions"><button class="inventory-close" onclick="openModal(rawCostReportView())">Hủy</button><button class="inventory-save" onclick="saveReportSnapshot('${month}','${type}')">💾 Chốt dữ liệu ${type==='closing'?'cuối':'đầu'} kỳ</button></div>`;
-}
-function previousMonth(month){ const [y,m]=month.split('-').map(Number); const d=new Date(y,m-2,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
-async function saveReportSnapshot(month,type){
-  if(reportSnapshotSaving)return;
-  if(!isOwnerRole())return showInventoryNotice('⚠️ Không có quyền','Chỉ Owner/Admin được chốt dữ liệu báo cáo.');
-  reportSnapshotSaving=true;
-  try{
-    const items={};
-    for(const x of raw){ const el=document.getElementById('reportqty_'+x.id); if(!el||el.value==='') continue; const qty=Number(el.value); if(!Number.isFinite(qty)||qty<0)throw new Error(`${x.name}: số lượng phải từ 0 trở lên.`); const inheritedQty=Number(el.dataset.inheritedQty); const inheritedValue=Number(el.dataset.inheritedValue); const keepInherited=type==='opening'&&Number.isFinite(inheritedQty)&&Math.abs(qty-inheritedQty)<1e-9&&Number.isFinite(inheritedValue); items[x.id]={qty,value:keepInherited?inheritedValue:qty*rawUnitCost(x),unit:x.unit,name:x.name,unitCost:keepInherited?Number(getReportSnapshot(previousMonth(month),'closing')?.items?.[x.id]?.unitCost||rawUnitCost(x)):rawUnitCost(x)}; }
-    if(!Object.keys(items).length)throw new Error('Chưa có số lượng nào để chốt.');
-    const savedAt=dateTime();
-    const savedBy=currentUser.id||currentUser.username||'';
-    const savedByName=currentUser.name||'';
-    const nextState={...(inventoryReportSnapshots||{})};
-    const key=reportSnapshotKey(month,type);
-    const snapshot={month,type,savedAt,savedBy,savedByName,items};
-    nextState[key]=snapshot;
-
-    // Khi chốt Cuối kỳ, đó là nguồn chính thức cho Đầu kỳ tháng kế tiếp.
-    // Ghi luôn snapshot kế thừa để báo cáo tháng sau không bị đứt dữ liệu.
-    if(type==='closing'){
-      const [yy,mm]=month.split('-').map(Number);
-      const nextDate=new Date(yy,mm,1);
-      const nextKey=`${nextDate.getFullYear()}-${String(nextDate.getMonth()+1).padStart(2,'0')}|opening`;
-      nextState[nextKey]={month:nextKey.slice(0,7),type:'opening',savedAt,savedBy,savedByName,source:'closing',items:JSON.parse(JSON.stringify(items))};
-    }
-
-    // Cloud là nguồn sự thật: chỉ cập nhật local sau khi Cloud thành công.
-    await saveConfigCloud('inventory_report_snapshots',nextState);
-    inventoryReportSnapshots=nextState;
-    configSaveLocal('sb_inventory_report_snapshots',inventoryReportSnapshots);
-    showSuccessToast(`Đã chốt dữ liệu ${type==='closing'?'cuối':'đầu'} kỳ ${month}`);
-    openModal(rawCostReportView());
-  }catch(e){showInventoryNotice('❌ CHƯA CHỐT ĐƯỢC DỮ LIỆU BÁO CÁO',e.message||String(e));}
-  finally{reportSnapshotSaving=false;}
-}
 function rawCostReportView() {
   if (!isOwnerRole()) return '';
   const {month,start,end}=monthBounds(costMonth);
@@ -2890,25 +2779,10 @@ function render() {
       <header>
         <div class="header-top"><div><div class="shop-title">Quản Lý Kho SB</div><div class="user-info">Xin chào, <b>${currentUser.name}</b></div></div><div class="role-badge">${roleLabel(currentUser.role)}</div></div>
         ${isOwnerRole() ? `<div class="owner-tools">
-          <div class="owner-tool-group">
-            <div class="owner-tool-group-label">📊 Báo cáo<br>& kiểm soát</div>
-            <button class="owner-tool-btn" onclick="openOwnerTool('reconcile')">📊 Đối chiếu Fabi</button>
-            <button class="owner-tool-btn" onclick="openOwnerTool('costReport')">📈 Báo cáo tồn</button>
-            <button class="owner-tool-btn" onclick="openOwnerTool('cost')">💰 Giá vốn</button>
-          </div>
-          <div class="owner-tool-standalone">
-            <button class="owner-tool-btn" onclick="openOwnerTool('inventory')">🧾 Kiểm kê</button>
-          </div>
-          <div class="owner-tool-group">
-            <div class="owner-tool-group-label">🧾 Danh mục<br>& sắp xếp</div>
-            <button class="owner-tool-btn" onclick="openOrdering()">↕️ Sắp xếp món</button>
-            ${currentUser.role === 'admin' ? `<button class="owner-tool-btn" onclick="openAdmin('items')">🧾 Mặt Hàng</button>` : ''}
-          </div>
-          ${currentUser.role === 'admin' ? `<div class="owner-tool-group">
-            <div class="owner-tool-group-label">👥 Nhân sự<br>& vị trí</div>
-            <button class="owner-tool-btn" onclick="openAdmin('accounts')">👥 Nhân Viên</button>
-            <button class="owner-tool-btn" onclick="openAdmin('location')">⚙ GPS Quán</button>
-          </div>` : ''}
+          <button class="owner-group-btn" onclick="openOwnerGroup('reports')"><span>📊 Báo cáo & kiểm soát<small>Fabi · Báo cáo · Giá vốn · Công thức</small></span><b class="owner-arrow">›</b></button>
+          <button class="owner-group-btn" onclick="openOwnerTool('inventory')"><span>🧾 Kiểm kê<small>Đối chiếu tồn thực tế</small></span><b class="owner-arrow">›</b></button>
+          <button class="owner-group-btn" onclick="openOwnerGroup('catalog')"><span>🧾 Danh mục & sắp xếp<small>Sắp xếp món · Mặt hàng</small></span><b class="owner-arrow">›</b></button>
+          ${currentUser.role === 'admin' ? `<button class="owner-group-btn" onclick="openOwnerGroup('people')"><span>👥 Nhân sự & vị trí<small>Nhân viên · GPS quán</small></span><b class="owner-arrow">›</b></button>` : ''}
         </div>` : ''}
         <div class="header-actions">
           <button class="btn-logout" onclick="logout()">Thoát</button>
@@ -2921,6 +2795,153 @@ function render() {
 
   if (currentUser && (page === 'raw' || page === 'finished')) requestAnimationFrame(initTableStickyGroup);
 }
+
+
+/* ================================================================
+   SB PRO BUSINESS LAYER V1
+   Nguyên liệu -> Công thức nấu -> Thành phẩm -> Công thức món -> Fabi
+   Các bảng sb_* là lớp nghiệp vụ mới, không thay đổi Ledger tồn kho cũ.
+================================================================ */
+let sbCookRecipes = [], sbCookLines = [], sbDishRecipes = [], sbDishLines = [], sbFabiSales = [];
+let sbRecipeTab = 'cook';
+let sbEditingRecipeId = null;
+
+function sbNowIso(){ return new Date().toISOString(); }
+function sbEsc(v){ return tableEsc(v == null ? '' : String(v)); }
+function sbId(prefix){ return prefix+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,9); }
+function sbRoleOk(){ return isOwnerRole(); }
+function sbDateInput(v){ return /^\d{4}-\d{2}-\d{2}$/.test(String(v||'')) ? v : localDateKey(); }
+function sbEffectiveRecipe(list,name,date=localDateKey()){
+  const n=String(name||'').trim().toLowerCase();
+  return list.filter(r=>String(r.name||'').trim().toLowerCase()===n && r.active!==false && String(r.effective_from||'')<=date)
+    .sort((a,b)=>Number(b.version_no||0)-Number(a.version_no||0)||String(b.effective_from||'').localeCompare(String(a.effective_from||'')))[0]||null;
+}
+function sbRawName(id){ return raw.find(x=>String(x.id)===String(id))?.name || '(Nguyên liệu không tồn tại)'; }
+function sbFgName(id){ return fg.find(x=>String(x.id)===String(id))?.name || '(Thành phẩm không tồn tại)'; }
+function sbLineSourceName(line){ return line.source_type==='raw' ? sbRawName(line.source_item_id) : sbFgName(line.source_item_id); }
+function sbUnitForLine(line){ const item=line.source_type==='raw'?raw.find(x=>String(x.id)===String(line.source_item_id)):fg.find(x=>String(x.id)===String(line.source_item_id)); return line.unit || item?.unit || ''; }
+
+async function sbLoadBusinessData(){
+  if(!sbRoleOk()) return;
+  const qs=[
+    supabaseClient.from('sb_cook_recipes').select('*').order('name').order('version_no',{ascending:false}),
+    supabaseClient.from('sb_cook_recipe_lines').select('*'),
+    supabaseClient.from('sb_dish_recipes').select('*').order('name').order('version_no',{ascending:false}),
+    supabaseClient.from('sb_dish_recipe_lines').select('*'),
+    supabaseClient.from('sb_fabi_sales').select('*').order('sale_date',{ascending:false}).order('created_at',{ascending:false})
+  ];
+  const [a,b,c,d,e]=await Promise.all(qs);
+  for(const [res,label] of [[a,'Công thức nấu'],[b,'Chi tiết công thức nấu'],[c,'Công thức món'],[d,'Chi tiết công thức món'],[e,'Fabi']]) if(res.error) throw new Error(label+': '+res.error.message);
+  sbCookRecipes=a.data||[]; sbCookLines=b.data||[]; sbDishRecipes=c.data||[]; sbDishLines=d.data||[]; sbFabiSales=e.data||[];
+}
+
+async function sbEnsureLoaded(){ if(!sbCookRecipes.length && !sbDishRecipes.length) await sbLoadBusinessData(); }
+
+function recipeCenterView(tab='cook'){
+  if(!sbRoleOk())return ''; sbRecipeTab=tab;
+  const tabs=`<div class="sb-tabs"><button class="${tab==='cook'?'active':''}" onclick="openModal(recipeCenterView('cook'))">Công thức nấu</button><button class="${tab==='dish'?'active':''}" onclick="openModal(recipeCenterView('dish'))">Công thức món</button><button class="${tab==='integrity'?'active':''}" onclick="openModal(recipeCenterView('integrity'))">Kiểm tra liên kết</button></div>`;
+  if(tab==='integrity') return `<div class="sb-modal-wrap"><div class="sb-modal-title"><div><h2>🧪 Công thức & liên kết</h2><p>Kiểm tra toàn bộ chuỗi danh mục → công thức → thành phẩm → Fabi.</p></div><button class="sb-x" onclick="closeModal()">×</button></div>${tabs}${recipeIntegrityContent()}<div class="sb-footer"><button onclick="closeModal()">Đóng</button></div></div>`;
+  const list=tab==='cook'?sbCookRecipes:sbDishRecipes, grouped=[], seen=new Set(); [...list].sort((a,b)=>String(a.name).localeCompare(String(b.name),'vi')).forEach(r=>{const k=String(r.name).trim().toLowerCase();if(seen.has(k))return;seen.add(k);grouped.push(sbEffectiveRecipe(list,r.name));});
+  const cards=grouped.map(r=>{const lines=(tab==='cook'?sbCookLines:sbDishLines).filter(l=>l.recipe_id===r.id),status=r.effective_from>localDateKey()?'Sắp áp dụng':(r.active===false?'Ngưng':'Đang dùng');return `<div class="sb-biz-card"><div class="sb-biz-head"><div><b>${sbEsc(r.name)}${tab==='dish'&&r.size_name?` · ${sbEsc(r.size_name)}`:''}</b><small>Phiên bản ${Number(r.version_no||1)} · hiệu lực ${sbEsc(r.effective_from||'')}</small></div><span class="sb-status ${status==='Đang dùng'?'ok':status==='Sắp áp dụng'?'wait':'off'}">${status}</span></div><div class="sb-line-list">${lines.slice(0,5).map(l=>`<div><span>${sbEsc(l.source_type==='raw'?sbRawName(l.source_item_id):sbFgName(l.source_item_id))}</span><b>${fmt(l.qty)} ${sbEsc(sbUnitForLine(l))}</b></div>`).join('')}${lines.length>5?`<div class="sb-more">+ ${lines.length-5} thành phần</div>`:''}</div><div class="sb-card-actions"><button onclick="sbEditRecipe('${r.id}','${tab}')">Sửa</button><button onclick="sbDuplicateRecipe('${r.id}','${tab}')">Tạo phiên bản mới</button></div></div>`;}).join('');
+  const title=tab==='cook'?'🧪 Công thức nấu':'🥤 Công thức món',note=tab==='cook'?'Nguyên liệu thô → Thành phẩm. Mỗi phiên bản có ngày hiệu lực để lịch sử không bị tính lại theo công thức mới.':'Kho Thô + Kho Thành Phẩm → Món / Size. Công thức món có thể dùng đồng thời cả hai nguồn.';
+  return `<div class="sb-modal-wrap"><div class="sb-modal-title"><div><h2>${title}</h2><p>${note}</p></div><button class="sb-x" onclick="closeModal()">×</button></div>${tabs}<div class="sb-toolbar"><button class="sb-primary" onclick="sbNewRecipe('${tab}')">＋ Tạo ${tab==='cook'?'công thức nấu':'công thức món'}</button></div>${cards||'<div class="sb-empty">Chưa có công thức. Hãy tạo công thức đầu tiên.</div>'}<div class="sb-footer"><button onclick="closeModal()">Đóng</button></div></div>`;
+}
+
+function sbNewRecipe(tab){ if(tab==='integrity')return; sbEditingRecipeId=null; openModal(sbRecipeEditor(tab,null)); }
+function sbRecipeLines(tab,recipeId){ return (tab==='cook'?sbCookLines:sbDishLines).filter(l=>l.recipe_id===recipeId); }
+function sbRecipeEditor(tab,recipeId){
+  const isCook=tab==='cook'; const list=isCook?sbCookRecipes:sbDishRecipes; const r=recipeId?list.find(x=>x.id===recipeId):null;
+  const lines=r?sbRecipeLines(tab,r.id):[];
+  const currentLines=lines.map((l,i)=>sbLineEditor(l,i,tab)).join('');
+  const yieldItem=isCook?`<div class="sb-grid2"><label>Sản phẩm thành phẩm<select id="sbRecipeFg">${fg.map(x=>`<option value="${x.id}" ${String(x.id)===String(r?.fg_item_id)?'selected':''}>${sbEsc(x.name)} · ${sbEsc(x.unit)}</option>`).join('')}</select></label><label>Sản lượng chuẩn<input id="sbRecipeYield" type="number" min="0.000001" step="any" value="${r?.yield_qty??''}" placeholder="25"><small>Ví dụ: 25 L</small></label></div>`:`<div class="sb-grid2"><label>Size ly<input id="sbRecipeSize" value="${sbEsc(r?.size_name||'')}" placeholder="M, L, 700ml..."></label><div class="sb-kpi"><span>Phiên bản</span><b>${Number(r?.version_no||1)}</b></div></div>`;
+  return `<div class="sb-modal-wrap"><div class="sb-modal-title"><div><h2>${r?'✏️ Sửa công thức':'＋ Tạo công thức'}</h2><p>${isCook?'Một phiên bản công thức nấu chỉ có 1 thành phẩm đầu ra.':'Nhập tên món + size, sau đó chọn nguyên liệu từ Kho Thô hoặc Thành Phẩm. Chỉ nhập số lượng; đơn vị được hệ thống tự lấy theo đơn vị chuẩn.'}</p></div><button class="sb-x" onclick="openModal(recipeCenterView('${tab}'))">×</button></div><div class="sb-form"><label>${isCook?'Tên công thức':'Tên món'}<input id="sbRecipeName" value="${sbEsc(r?.name||'')}" placeholder="${isCook?'Ví dụ: Trà sữa truyền thống':'Ví dụ: Trà sữa truyền thống'}"></label>${yieldItem}<div class="sb-grid2"><label>Ngày hiệu lực<input id="sbRecipeDate" type="date" value="${sbDateInput(r?.effective_from)}"></label><label>Ghi chú<input id="sbRecipeNote" value="${sbEsc(r?.note||'')}" placeholder="Tùy chọn"></label></div><div class="sb-section-head"><b>${isCook?'Nguyên liệu cấu thành':'Nguyên liệu cấu thành món'}</b><button onclick="sbAddLine('${tab}')">＋ Thêm nguyên liệu</button></div><div id="sbRecipeLines">${currentLines}</div><div class="sb-form-hint">${isCook?'Đơn vị nguyên liệu được lấy theo đơn vị quy đổi của Kho Thô.':'Chọn nguyên liệu từ 2 nguồn: Kho Thô hoặc Kho Thành Phẩm. Bạn chỉ nhập số lượng; đơn vị tự lấy chuẩn: Kho Thô dùng Đơn vị quy đổi, Thành Phẩm dùng ĐVT của thành phẩm.'}</div></div><div class="sb-footer"><button onclick="openModal(recipeCenterView('${tab}'))">Hủy</button><button class="sb-primary" onclick="sbSaveRecipe('${tab}','${recipeId||''}')">💾 Lưu công thức</button></div></div>`;
+}
+function sbLineEditor(l,i,tab){
+  const sourceOptions=tab==='cook'
+    ? raw.map(x=>`<option value="raw:${x.id}" ${String(l?.source_item_id)===String(x.id)?'selected':''}>${sbEsc(x.name)}</option>`).join('')
+    : [...raw.map(x=>`<option value="raw:${x.id}" ${l?.source_type==='raw'&&String(l.source_item_id)===String(x.id)?'selected':''}>[Kho Thô] ${sbEsc(x.name)}</option>`),...fg.map(x=>`<option value="fg:${x.id}" ${l?.source_type==='fg'&&String(l.source_item_id)===String(x.id)?'selected':''}>[Thành phẩm] ${sbEsc(x.name)}</option>`)].join('');
+  const type=l?.source_type||'raw'; const item=type==='raw'?raw.find(x=>String(x.id)===String(l?.source_item_id)):fg.find(x=>String(x.id)===String(l?.source_item_id));
+  const unit=type==='raw'?(rawConversionUnit(item)||item?.unit||''):item?.unit||'';
+  return `<div class="sb-line-editor" data-line-index="${i}"><select class="sb-line-source" onchange="sbRefreshLineUnit(this)">${sourceOptions}</select><input class="sb-line-qty" type="number" min="0.000001" step="any" value="${l?.qty??''}" placeholder="Số lượng"><span class="sb-line-unit-auto">${sbEsc(unit||'—')}</span><button type="button" onclick="this.closest('.sb-line-editor').remove()">×</button></div>`;
+}
+function sbRefreshLineUnit(sel){
+  const row=sel.closest('.sb-line-editor'); if(!row)return; const v=sel.value||''; const [type,id]=v.split(':'); const item=type==='raw'?raw.find(x=>String(x.id)===String(id)):fg.find(x=>String(x.id)===String(id)); const unit=type==='raw'?(rawConversionUnit(item)||item?.unit||''):item?.unit||''; const u=row.querySelector('.sb-line-unit-auto'); if(u)u.textContent=unit||'—';
+}
+function sbAddLine(tab){ const box=document.getElementById('sbRecipeLines'); if(!box)return; const i=box.querySelectorAll('.sb-line-editor').length; const holder=document.createElement('div'); holder.innerHTML=sbLineEditor(null,i,tab); box.appendChild(holder.firstElementChild); }
+function sbCollectLines(tab){
+  return [...document.querySelectorAll('#sbRecipeLines .sb-line-editor')].map(row=>{const v=row.querySelector('.sb-line-source')?.value||'';const [source_type,source_item_id]=v.split(':'); const item=source_type==='raw'?raw.find(x=>String(x.id)===String(source_item_id)):fg.find(x=>String(x.id)===String(source_item_id)); const unit=source_type==='raw'?(rawConversionUnit(item)||item?.unit||''):item?.unit||''; return {source_type,source_item_id,qty:Number(row.querySelector('.sb-line-qty')?.value||0),unit};});
+}
+async function sbSaveRecipe(tab,recipeId){
+  if(!sbRoleOk())return; const isCook=tab==='cook'; const list=isCook?sbCookRecipes:sbDishRecipes; const old=recipeId?list.find(x=>x.id===recipeId):null;
+  const name=String(document.getElementById('sbRecipeName')?.value||'').trim(); const sizeName=isCook?'':String(document.getElementById('sbRecipeSize')?.value||'').trim(); const effective=document.getElementById('sbRecipeDate')?.value||localDateKey(); const note=String(document.getElementById('sbRecipeNote')?.value||'').trim();
+  if(!name)return showInventoryNotice('⚠️ Thiếu tên','Hãy nhập tên công thức.'); if(!isCook&&!sizeName)return showInventoryNotice('⚠️ Thiếu size ly','Hãy nhập size ly cho món.'); if(!/^\d{4}-\d{2}-\d{2}$/.test(effective))return showInventoryNotice('⚠️ Ngày hiệu lực','Ngày hiệu lực không hợp lệ.');
+  const lines=sbCollectLines(tab); if(!lines.length)return showInventoryNotice('⚠️ Chưa có nguyên liệu','Công thức phải có ít nhất 1 nguyên liệu.');
+  const seen=new Set();
+  for(const l of lines){if(!l.source_item_id||!l.unit||!Number.isFinite(l.qty)||l.qty<=0)return showInventoryNotice('⚠️ Thành phần không hợp lệ','Mọi nguyên liệu phải có số lượng lớn hơn 0 và đơn vị chuẩn phải xác định được.');const key=l.source_type+':'+l.source_item_id;if(seen.has(key))return showInventoryNotice('⚠️ Trùng nguyên liệu',`Không được khai báo trùng ${sbLineSourceName(l)}.`);seen.add(key);if(l.source_type==='raw'&&!raw.some(x=>String(x.id)===String(l.source_item_id)))return showInventoryNotice('⚠️ Liên kết lỗi','Nguyên liệu Kho Thô không còn tồn tại.');if(l.source_type==='fg'&&!fg.some(x=>String(x.id)===String(l.source_item_id)))return showInventoryNotice('⚠️ Liên kết lỗi','Thành phẩm không còn tồn tại.');}
+  const fgId=isCook?document.getElementById('sbRecipeFg')?.value:null; const yieldQty=isCook?Number(document.getElementById('sbRecipeYield')?.value||0):0;
+  if(isCook&&(!fgId||!Number.isFinite(yieldQty)||yieldQty<=0))return showInventoryNotice('⚠️ Sản lượng không hợp lệ','Công thức nấu phải có thành phẩm đầu ra và sản lượng chuẩn > 0.');
+  try{
+    const version=old?Number(old.version_no||1)+1:Math.max(0,...list.filter(x=>String(x.name).trim().toLowerCase()===name.toLowerCase() && String(x.size_name||'').trim().toLowerCase()===sizeName.toLowerCase()).map(x=>Number(x.version_no||0)))+1;
+    const id=sbId(isCook?'cook':'dish'); const header={id,name,version_no:version,effective_from:effective,active:true,note,created_at:sbNowIso(),created_by:currentUser.id||currentUser.username||''};
+    if(!isCook)header.size_name=sizeName;
+    if(isCook)header.fg_item_id=fgId,header.yield_qty=yieldQty,header.yield_unit=fg.find(x=>String(x.id)===String(fgId))?.unit||'';
+    const table=isCook?'sb_cook_recipes':'sb_dish_recipes'; const lineTable=isCook?'sb_cook_recipe_lines':'sb_dish_recipe_lines';
+    const {error:hErr}=await supabaseClient.from(table).insert([header]);if(hErr)throw hErr;
+    const payload=lines.map(l=>({id:sbId('line'),recipe_id:id,source_type:l.source_type,source_item_id:l.source_item_id,qty:l.qty,unit:l.unit,created_at:sbNowIso()}));
+    const {error:lErr}=await supabaseClient.from(lineTable).insert(payload);if(lErr){await supabaseClient.from(table).delete().eq('id',id);throw lErr;}
+    if(old){const {error}=await supabaseClient.from(table).update({active:false}).eq('id',old.id);if(error){await supabaseClient.from(lineTable).delete().eq('recipe_id',id);await supabaseClient.from(table).delete().eq('id',id);throw error;}}
+    await sbLoadBusinessData(); openModal(recipeCenterView(tab)); showSuccessToast('Đã lưu công thức và tạo phiên bản mới.');
+  }catch(e){showInventoryNotice('❌ CHƯA LƯU ĐƯỢC',e.message||String(e));}
+}
+async function sbEditRecipe(id,tab){ await sbEnsureLoaded(); sbEditingRecipeId=id; openModal(sbRecipeEditor(tab,id)); }
+async function sbDuplicateRecipe(id,tab){ await sbEnsureLoaded(); const list=tab==='cook'?sbCookRecipes:sbDishRecipes; const r=list.find(x=>x.id===id); if(!r)return; openModal(sbRecipeEditor(tab,id)); }
+
+function sbExpandDish(recipe,qty,memo=new Map(),path=[]){
+  const lines=sbDishLines.filter(l=>l.recipe_id===recipe.id);
+  for(const l of lines){
+    const amount=qty*Number(l.qty||0); const key=l.source_type+':'+l.source_item_id+':'+(l.unit||''); memo.set(key,(memo.get(key)||0)+amount);
+    if(l.source_type==='fg'){
+      const child=sbEffectiveRecipe(sbCookRecipes,sbFgName(l.source_item_id));
+      if(child){if(path.includes(child.id)) continue; const factor=amount/Math.max(0.000001,Number(child.yield_qty||0)); sbExpandCook(child,factor,memo,path.concat(recipe.id));}
+    }
+  } return memo;
+}
+function sbExpandCook(recipe,batchFactor,memo,path=[]){
+  for(const l of sbCookLines.filter(l=>l.recipe_id===recipe.id)){const amount=batchFactor*Number(l.qty||0);const key='raw:'+l.source_item_id+':'+(l.unit||'');memo.set(key,(memo.get(key)||0)+amount);} return memo;
+}
+function sbDishCost(recipeId,qty=1){ const r=sbDishRecipes.find(x=>x.id===recipeId); if(!r)return {raw:new Map(),cost:0}; const memo=sbExpandDish(r,qty); let cost=0; for(const [k,v] of memo){if(k.startsWith('raw:')){const p=k.split(':');cost+=sbCostOfRaw(p[1],v,p.slice(2).join(':'));}} return {raw:memo,cost}; }
+
+function recipeIntegrityContent(){
+  if(!sbRoleOk())return ''; const issues=[];
+  for(const r of sbCookRecipes){ if(!fg.some(x=>String(x.id)===String(r.fg_item_id)))issues.push(`Công thức nấu “${r.name}” đang trỏ tới thành phẩm không tồn tại.`); const ls=sbCookLines.filter(l=>l.recipe_id===r.id); if(!ls.length)issues.push(`Công thức nấu “${r.name}” chưa có nguyên liệu.`); for(const l of ls)if(!raw.some(x=>String(x.id)===String(l.source_item_id)))issues.push(`Công thức nấu “${r.name}” có nguyên liệu đã bị xóa.`);}
+  for(const r of sbDishRecipes){const ls=sbDishLines.filter(l=>l.recipe_id===r.id);if(!ls.length)issues.push(`Công thức món “${r.name}” chưa có thành phần.`);for(const l of ls){const arr=l.source_type==='raw'?raw:fg;if(!arr.some(x=>String(x.id)===String(l.source_item_id)))issues.push(`Công thức món “${r.name}” có liên kết ${l.source_type==='raw'?'Kho Thô':'Thành phẩm'} không tồn tại.`);if(l.source_type==='fg'&&!sbEffectiveRecipe(sbCookRecipes,sbFgName(l.source_item_id)))issues.push(`Công thức món “${r.name}” dùng thành phẩm “${sbFgName(l.source_item_id)}” nhưng chưa có Công thức Nấu.`);}}
+  const names=new Map();for(const r of [...sbCookRecipes,...sbDishRecipes]){const k=(r.name||'').trim().toLowerCase();names.set(k,(names.get(k)||0)+1);} 
+  return `<div class="sb-integrity-summary"><b>${issues.length?'⚠️ Có '+issues.length+' điểm cần xử lý':'✓ Cấu trúc liên kết đang hợp lệ'}</b><span>Kiểm tra ${sbCookRecipes.length} công thức nấu · ${sbDishRecipes.length} công thức món</span></div>${issues.length?`<div class="sb-issue-list">${issues.map(x=>`<div>⚠️ ${sbEsc(x)}</div>`).join('')}</div>`:`<div class="sb-good">Không phát hiện liên kết mồ côi hoặc công thức món trỏ tới thành phẩm chưa có công thức nấu.</div>`}<div class="sb-flow"><span>Nguyên liệu</span><i>→</i><span>Công thức nấu</span><i>→</i><span>Thành phẩm</span><i>→</i><span>Công thức món</span><i>→</i><span>Fabi</span></div>`;
+}
+function recipeIntegrityView(){
+  return recipeCenterView('integrity');
+}
+
+function sbFabiView(date=localDateKey()){
+  if(!sbRoleOk())return ''; const rows=[...sbDishRecipes].filter(r=>r.active!==false).filter(r=>String(r.effective_from||'')<=date).sort((a,b)=>String(a.name).localeCompare(String(b.name),'vi'));
+  const saved=sbFabiSales.filter(x=>x.sale_date===date); const map=new Map(saved.map(x=>[x.dish_recipe_id,x]));
+  const html=rows.map(r=>`<div class="sb-fabi-row"><div><b>${sbEsc(r.name)}</b><small>v${r.version_no} · hiệu lực ${sbEsc(r.effective_from)}</small></div><input id="fabi_qty_${r.id}" type="number" min="0" step="1" value="${map.get(r.id)?.qty??''}" placeholder="0"><button onclick="sbShowDishTrace('${r.id}',${Number(map.get(r.id)?.qty||0)},'${date}')">Xem</button></div>`).join('');
+  return `<div class="sb-modal-wrap"><div class="sb-modal-title"><div><h2>📊 Fabi · Đối soát bán hàng</h2><p>Nhập số món/size bán trong ngày. Hệ thống quy đổi ngược về thành phẩm và nguyên liệu gốc.</p></div><button class="sb-x" onclick="closeModal()">×</button></div><div class="sb-grid2"><label>Ngày đối soát<input id="sbFabiDate" type="date" value="${date}" onchange="openModal(sbFabiView(this.value))"></label><div class="sb-kpi"><span>Tổng dòng có dữ liệu</span><b>${saved.length}</b></div></div><div class="sb-form-hint">Fabi là lớp đối soát, không tự sửa tồn kho. Chênh lệch chỉ được kết luận sau khi so sánh lượng lý thuyết với Ledger/kiểm kê thực tế.</div>${html||'<div class="sb-empty">Chưa có Công thức Món để đối soát.</div>'}<div class="sb-footer"><button onclick="closeModal()">Đóng</button><button class="sb-primary" onclick="sbSaveFabi('${date}')">💾 Lưu số bán</button></div></div>`;
+}
+async function sbSaveFabi(date){
+  const payload=[]; for(const r of sbDishRecipes.filter(r=>r.active!==false&&String(r.effective_from||'')<=date)){const el=document.getElementById('fabi_qty_'+r.id);if(!el||el.value==='')continue;const qty=Number(el.value);if(!Number.isFinite(qty)||qty<0)return showInventoryNotice('⚠️ Số bán không hợp lệ',`${r.name}: số bán phải từ 0.`);payload.push({id:sbId('fabi'),sale_date:date,dish_recipe_id:r.id,qty,created_at:sbNowIso(),created_by:currentUser.id||currentUser.username||''});}
+  try{const {error:delErr}=await supabaseClient.from('sb_fabi_sales').delete().eq('sale_date',date);if(delErr)throw delErr;if(payload.length){const {error}=await supabaseClient.from('sb_fabi_sales').insert(payload);if(error)throw error;}await sbLoadBusinessData();openModal(sbFabiView(date));showSuccessToast('Đã lưu số bán Fabi.');}catch(e){showInventoryNotice('❌ CHƯA LƯU FABI',e.message||String(e));}
+}
+function sbShowDishTrace(recipeId,qty,date){const r=sbDishRecipes.find(x=>x.id===recipeId);if(!r)return;const res=sbDishCost(recipeId,qty||1);const rows=[...res.raw].filter(([k])=>k.startsWith('raw:')).map(([k,v])=>{const parts=k.split(':'); const id=parts[1],u=parts.slice(2).join(':')||raw.find(q=>String(q.id)===String(id))?.unit||''; const x=raw.find(q=>String(q.id)===String(id)); return `<div class="sb-trace-row"><span>${sbEsc(x?.name||id)}<small>${sbEsc(u)}</small></span><b>${fmt(v)} ${sbEsc(u)}</b><strong>${fmtMoney(sbCostOfRaw(id,v,u))}</strong></div>`}).join('');openModal(`<div class="sb-modal-wrap"><div class="sb-modal-title"><div><h2>🔎 Truy xuất · ${sbEsc(r.name)}</h2><p>${fmt(qty||1)} món · ngày ${sbEsc(date)}</p></div><button class="sb-x" onclick="openModal(sbFabiView('${date}'))">×</button></div><div class="sb-trace-card"><b>Lý thuyết nguyên liệu gốc</b>${rows||'<div class="sb-empty">Chưa đủ liên kết để truy xuất.</div>'}<div class="sb-total"><span>Giá vốn lý thuyết</span><b>${fmtMoney(res.cost)}</b></div></div><div class="sb-form-hint">Đây là lượng lý thuyết theo công thức có hiệu lực. Không tự ghi trừ kho.</div><div class="sb-footer"><button class="sb-primary" onclick="openModal(sbFabiView('${date}'))">Quay lại Fabi</button></div></div>`);}
+
+const sbStyle=document.createElement('style'); sbStyle.textContent=`
+.sb-modal-wrap{color:#102a43}.sb-modal-title{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}.sb-modal-title h2{font-size:19px;margin:0}.sb-modal-title p{margin:4px 0 0;color:#64748b;font-size:11px;line-height:1.4}.sb-x{border:0;background:#f1f5f9;border-radius:10px;width:34px;height:34px;font-size:22px;color:#334155}.sb-tabs{display:flex;gap:6px;background:#f1f5f9;padding:4px;border-radius:12px;margin-bottom:10px}.sb-tabs button{flex:1;border:0;background:transparent;padding:9px;border-radius:9px;font-size:11px;font-weight:800;color:#64748b}.sb-tabs button.active{background:#fff;color:#007bb0;box-shadow:0 1px 4px rgba(15,23,42,.08)}.sb-toolbar{display:flex;gap:7px;margin:10px 0}.sb-toolbar button,.sb-card-actions button,.sb-footer button,.sb-section-head button{border:1px solid #dbe4ec;background:#fff;border-radius:10px;padding:9px 11px;font-size:11px;font-weight:800;color:#334155}.sb-primary{background:#0097d2!important;color:#fff!important;border-color:#0097d2!important}.sb-biz-card{background:#fff;border:1px solid #dbe4ec;border-radius:14px;padding:11px;margin-bottom:8px}.sb-biz-head{display:flex;justify-content:space-between;gap:8px}.sb-biz-head b{font-size:14px}.sb-biz-head small{display:block;color:#64748b;font-size:9px;margin-top:3px}.sb-status{font-size:9px;font-weight:900;padding:5px 7px;border-radius:999px;height:max-content}.sb-status.ok{background:#dcfce7;color:#166534}.sb-status.wait{background:#fef3c7;color:#92400e}.sb-status.off{background:#f1f5f9;color:#64748b}.sb-line-list{margin-top:8px;border-top:1px solid #edf2f7}.sb-line-list>div{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #f1f5f9;font-size:10px}.sb-line-list b{white-space:nowrap}.sb-more{color:#64748b!important;justify-content:center!important}.sb-card-actions{display:flex;gap:7px;margin-top:8px}.sb-form{display:flex;flex-direction:column;gap:10px}.sb-form label,.sb-grid2 label{font-size:10px;font-weight:800;color:#475569}.sb-form input,.sb-form select,.sb-grid2 input,.sb-grid2 select{display:block;width:100%;margin-top:4px;padding:10px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;font-size:13px;font-weight:700;color:#0f172a}.sb-form small{display:block;color:#94a3b8;font-size:9px;margin-top:3px}.sb-grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.sb-section-head{display:flex;justify-content:space-between;align-items:center;margin-top:4px}.sb-line-editor{display:grid;grid-template-columns:minmax(0,1fr) 85px 32px 30px;gap:5px;align-items:center;margin-bottom:6px}.sb-line-editor select,.sb-line-editor input{min-width:0;padding:9px;border:1px solid #cbd5e1;border-radius:8px;font-size:11px;font-weight:700;background:#fff}.sb-line-unit{font-size:9px;color:#64748b;text-align:center;font-weight:800}.sb-line-editor button{border:0;background:#fee2e2;color:#b91c1c;border-radius:8px;height:34px}.sb-form-hint{padding:9px 10px;background:#f0f9ff;border:1px solid #bae6fd;color:#0369a1;border-radius:10px;font-size:10px;line-height:1.45}.sb-footer{display:flex;justify-content:flex-end;gap:7px;margin-top:12px;padding-top:10px;border-top:1px solid #edf2f7}.sb-empty,.sb-good{padding:16px;text-align:center;color:#64748b;font-size:11px;background:#f8fafc;border-radius:12px}.sb-integrity-summary{padding:12px;border-radius:12px;background:#f8fafc;display:flex;justify-content:space-between;gap:8px;align-items:center}.sb-integrity-summary b{font-size:13px}.sb-integrity-summary span{font-size:9px;color:#64748b}.sb-issue-list{margin-top:8px}.sb-issue-list div{padding:8px 9px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:9px;margin-bottom:6px;font-size:10px}.sb-flow{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:5px;margin-top:12px;padding:10px;background:#f8fafc;border-radius:12px}.sb-flow span{background:#fff;border:1px solid #dbe4ec;padding:6px 8px;border-radius:8px;font-size:9px;font-weight:800}.sb-flow i{font-style:normal;color:#94a3b8}.sb-fabi-row{display:grid;grid-template-columns:minmax(0,1fr) 72px 44px;gap:6px;align-items:center;padding:9px 0;border-bottom:1px solid #edf2f7}.sb-fabi-row b{font-size:11px}.sb-fabi-row small{display:block;color:#64748b;font-size:8px;margin-top:2px}.sb-fabi-row input{width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;text-align:center;font-weight:800}.sb-fabi-row button{border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:8px 5px;font-size:9px;font-weight:800}.sb-kpi{background:#f8fafc;border:1px solid #dbe4ec;border-radius:10px;padding:9px}.sb-kpi span{display:block;font-size:9px;color:#64748b}.sb-kpi b{font-size:16px}.sb-trace-card{background:#fff;border:1px solid #dbe4ec;border-radius:12px;padding:10px}.sb-trace-card>b{display:block;margin-bottom:7px;font-size:12px}.sb-trace-row{display:grid;grid-template-columns:1fr auto auto;gap:7px;align-items:center;padding:7px 0;border-bottom:1px solid #edf2f7;font-size:10px}.sb-trace-row span small{display:block;color:#64748b;font-size:8px}.sb-trace-row strong{font-size:10px;color:#0f766e;white-space:nowrap}.sb-total{display:flex;justify-content:space-between;margin-top:10px;padding-top:8px;border-top:1px solid #dbe4ec;font-size:11px}.sb-total b{color:#0f766e}.sb-modal-wrap .btn-cancel{border:1px solid #dbe4ec;background:#fff;color:#334155}
+`;document.head.appendChild(sbStyle);
+
+// Chèn lớp nghiệp vụ vào tải dữ liệu hiện tại semantically; không thay đổi Ledger.
+const _oldFetchInitialData = fetchInitialData;
+fetchInitialData = async function(){ await _oldFetchInitialData(); if(currentUser && isOwnerRole()){ try{await sbLoadBusinessData();}catch(e){console.warn('SB Business Layer:',e.message||e);} } };
+
 
 // Khởi chạy ứng dụng
 initSession();
