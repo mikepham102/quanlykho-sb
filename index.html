@@ -3010,45 +3010,57 @@ async function saveTableRow(tab,id){
   const arr=tab==='raw'?raw:fg;
   const item=arr.find(x=>sameLedgerItemId(x.id,id));
   if(!item)return showInventoryNotice('❌ Không tìm thấy mặt hàng','Mặt hàng không còn tồn tại trên màn hình.');
+
+  // DRAFT CHỈ LÀ SỐ CHỜ LƯU. Tuyệt đối không dùng draft để tính Tồn cuối trên màn hình.
+  // Khi bấm Lưu, Cloud mới là nguồn sự thật: đọc lại item + toàn bộ log của đúng mặt hàng,
+  // rồi mới kiểm tra toàn bộ nhóm giao dịch theo đúng thứ tự người dùng nhập.
   const d={...(tableDrafts[key]||{})};
   const ops=(tab==='raw'
-    ? [{type:'import',qty:normalizeQty1(d.import||0),actionName:'＋ Nhập kho'},{type:'export',qty:normalizeQty1(d.export||0),actionName:'− Xuất kho'}]
-    : [{type:'production',qty:normalizeQty1(d.production||0),actionName:'＋ Nấu thêm'},{type:'sales',qty:normalizeQty1(d.sales||0),actionName:'− Xuất bán'},{type:'return',qty:normalizeQty1(d.return||0),actionName:'↩ Thu hồi'},{type:'waste',qty:normalizeQty1(d.waste||0),actionName:'− Hủy món'}]
+    ? [
+        {type:'import',qty:normalizeQty1(d.import||0),actionName:'＋ Nhập kho'},
+        {type:'export',qty:normalizeQty1(d.export||0),actionName:'− Xuất kho'}
+      ]
+    : [
+        {type:'production',qty:normalizeQty1(d.production||0),actionName:'＋ Nấu thêm'},
+        {type:'sales',qty:normalizeQty1(d.sales||0),actionName:'− Xuất bán'},
+        {type:'return',qty:normalizeQty1(d.return||0),actionName:'↩ Thu hồi'},
+        {type:'waste',qty:normalizeQty1(d.waste||0),actionName:'− Hủy món'}
+      ]
   ).filter(o=>o.qty>0);
   if(!ops.length)return;
-  tableSavingKey=key;updateTableRowUI(tab,id);
+
+  tableSavingKey=key;
+  updateTableRowUI(tab,id);
+
+  const itemTable=tab==='raw'?'raw_items':'fg_items';
+  const normalizeCloudLogs=(rows)=> (rows||[]).map(l=>normalizeInventoryLogNumbers({
+    id:l.id,tab:l.tab,itemId:l.itemid,item:l.item,action:l.action,qty:Number(l.qty||0),unit:l.unit,
+    before:Number(l.before||0),after:Number(l.after||0),actionType:l.actiontype,user:l.user,
+    username:l.userid||'',timestamp:Number(l.timestamp||0),dateKey:l.datekey||'',editedAt:l.editedat||null,
+    editedBy:l.editedby||null,time:l.time||''
+  }));
+
+  let insertedIds=[];
   try{
-    const itemTable=tab==='raw'?'raw_items':'fg_items';
-    const [{data:freshItem,error:freshError},{data:cloudRows,error:logsError}]=await Promise.all([
+    // 1) Đọc lại Cloud ngay tại thời điểm bấm Lưu. Không dùng tồn đang hiển thị để quyết định.
+    // QUAN TRỌNG: fetchAllCloudLogs() trả về MẢNG Log, không trả về object {data,error}.
+    // Bản cũ destructure mảng này như {data,error}, làm cloudRows thành undefined
+    // và Ledger bị hiểu sai thành 0 Log dù Cloud thực tế có dữ liệu.
+    const [freshItemResult, cloudRows] = await Promise.all([
       supabaseClient.from(itemTable).select('*').eq('id',item.id).maybeSingle(),
       fetchAllCloudLogs(item.id)
     ]);
+    const freshItem = freshItemResult.data;
+    const freshError = freshItemResult.error;
     if(freshError||!freshItem)throw new Error(freshError?.message||'Không tìm thấy dữ liệu mặt hàng trên Cloud.');
-    if(logsError)throw new Error(`Không thể đọc Nhật Ký Cloud: ${logsError.message||logsError}`);
-    const freshLogs=(cloudRows||[]).map(l=>normalizeInventoryLogNumbers({
-      id:l.id,tab:l.tab,itemId:l.itemid,item:l.item,action:l.action,qty:Number(l.qty||0),unit:l.unit,
-      before:Number(l.before||0),after:Number(l.after||0),actionType:l.actiontype,user:l.user,
-      username:l.userid||'',timestamp:Number(l.timestamp||0),dateKey:l.datekey||'',editedAt:l.editedat||null,
-      editedBy:l.editedby||null,time:l.time||''
-    }));
 
-    // Cloud là nguồn sự thật khi bấm Lưu. Nếu máy này đang hiển thị tồn cũ do
-    // Realtime chưa kịp đồng bộ, không được dùng con số cũ để cho người dùng
-    // thao tác tiếp. Đồng bộ lại giao diện ngay trong lần lưu này.
     const normalizedFreshItem=normalizeInventoryItemNumbers(freshItem,tab);
-    const cloudStock=calculateStockFromLogs(tab,normalizedFreshItem,freshLogs,Date.now());
-    const localStock=stockAtDate(tab,item,localDateKey());
-    if(Number.isFinite(cloudStock) && Number.isFinite(localStock) && Math.abs(normalizeLedgerNumber(cloudStock)-normalizeLedgerNumber(localStock))>1e-9){
-      if(tab==='raw') Object.assign(item,normalizedFreshItem); else Object.assign(item,normalizedFreshItem);
-      if(tab==='raw') raw=raw.map(x=>sameLedgerItemId(x.id,id)?normalizedFreshItem:x);
-      else fg=fg.map(x=>sameLedgerItemId(x.id,id)?normalizedFreshItem:x);
-      logs=freshLogs;
-      sortLogsNewestFirst();
-      saveLocalState();
-      render();
-      throw new Error(`Dữ liệu trên màn hình vừa cũ hơn Cloud. Tồn Cloud hiện tại của “${normalizedFreshItem.name}” là ${fmt(cloudStock)} ${normalizedFreshItem.unit}. Hệ thống đã tự đồng bộ lại. Vui lòng kiểm tra lại số tồn rồi thao tác lại.`);
-    }
+    const freshLogs=normalizeCloudLogs(cloudRows);
 
+    // 2) Kiểm tra quan hệ + tồn kho trên Cloud hiện tại.
+    //    prepareLedgerTransactions() chạy tuần tự các ô đã nhập, nên trường hợp
+    //    “Nấu thêm 0,2 + Xuất bán 0,2” trong cùng một lần Lưu là hợp lệ nếu
+    //    Nấu thêm đứng trước Xuất bán; ngược lại Xuất bán trước khi đủ tồn sẽ bị chặn.
     const preparedResult=prepareLedgerTransactions(tab,normalizedFreshItem,freshLogs,ops);
     if(!preparedResult.ok)throw new Error(preparedResult.message||'Không thể chuẩn bị giao dịch theo Ledger.');
 
@@ -3064,39 +3076,72 @@ async function saveTableRow(tab,id){
       dosage:tab==='raw'&&p.type==='export'?rawUsagePerProduct(freshItem):0,
       wasteqty:tab==='raw'&&p.type==='export'?rawWasteQty(freshItem):0,
       yieldqty:tab==='raw'&&p.type==='export'?rawYieldPerSourceUnit(freshItem)*p.qty:0,
+      // Giữ đúng thứ tự người dùng nhập trong cùng một lần Lưu.
       timestamp:now+i,datekey:localDateKey(),userid:currentUser.id||currentUser.username||'',user:userName,
       time:dateTime(),editedat:null,editedby:null
     }));
 
+    // 3) Ghi Log Cloud trước. Chưa cập nhật giao diện / Tồn cuối.
     const {data:insertedRows,error:insertError}=await supabaseClient.from('logs').insert(payload).select('id');
     if(insertError)throw new Error(`Không thể ghi Nhật Ký Cloud: ${insertError.message||insertError}`);
-    const insertedIds=new Set((insertedRows||[]).map(x=>x.id));
-    if(insertedIds.size!==payload.length || payload.some(x=>!insertedIds.has(x.id))){
+    insertedIds=(insertedRows||[]).map(x=>x.id);
+    if(insertedIds.length!==payload.length || payload.some(x=>!insertedIds.includes(x.id))){
       await supabaseClient.from('logs').delete().in('id',payload.map(x=>x.id));
-      throw new Error(`Cloud xác nhận thiếu Log: cần ${payload.length}, nhận ${insertedIds.size}.`);
+      insertedIds=[];
+      throw new Error(`Cloud xác nhận thiếu Log: cần ${payload.length}, nhận ${insertedIds.length}.`);
     }
 
-    try{
-      const {error:itemError}=await supabaseClient.from(itemTable).update(preparedResult.updatedItem).eq('id',freshItem.id);
-      if(itemError)console.warn('Không cập nhật được cột tổng hàng hóa; Ledger vẫn dùng Log Cloud:',itemError.message||itemError);
-
-      const localItem=arr.find(x=>sameLedgerItemId(x.id,id));
-      if(localItem)Object.assign(localItem,preparedResult.updatedItem);
-      const localLogs=payload.map(l=>normalizeInventoryLogNumbers({...l,itemId:l.itemid,actionType:l.actiontype,userId:l.userid,username:currentUser.username||'',dateKey:l.datekey,editedAt:null,editedBy:null,editDetail:'',time:l.time,unitCost:Number(l.unitcost||0)}));
-      logs=[...localLogs,...logs];
-      sortLogsNewestFirst();
-      saveLocalState();
-      clearTableDraft(tab,id);render();
-      showSuccessToast(`${preparedResult.prepared.length} giao dịch đã được ghi nhận · Ledger Cloud đã xác minh`);
-    }catch(verifyError){
-      await syncCoreDataFromCloudSilently().catch(()=>{});
-      render();
-      throw verifyError;
+    // 4) XÁC MINH SAU KHI GHI: đọc lại Cloud một lần nữa và replay toàn bộ Ledger.
+    //    Đây là chốt an toàn cho cả trường hợp 2 thiết bị cùng thao tác gần như đồng thời.
+    //    Nếu Cloud sau khi ghi không hợp lệ, tự xóa đúng nhóm Log vừa ghi và KHÔNG đổi UI.
+    const verifyRows=await fetchAllCloudLogs(item.id);
+    const verifyLogs=normalizeCloudLogs(verifyRows);
+    const verifyReplay=replayLedger(tab,normalizedFreshItem,verifyLogs,{validatePhysical:true,validateRelations:true});
+    if(!verifyReplay.ok){
+      await supabaseClient.from('logs').delete().in('id',insertedIds);
+      insertedIds=[];
+      throw new Error(`Cloud từ chối nhóm giao dịch: ${verifyReplay.message||verifyReplay.code}`);
     }
+
+    // 5) Chỉ sau khi Log Cloud + Ledger Cloud đều hợp lệ mới cập nhật cột tổng.
+    const {error:itemError}=await supabaseClient.from(itemTable).update(preparedResult.updatedItem).eq('id',freshItem.id);
+    if(itemError){
+      // Không coi việc cập nhật các cột tổng là nguồn sự thật. Log đã hợp lệ nên
+      // Ledger vẫn đúng; chỉ ghi cảnh báo để lần đồng bộ sau cập nhật lại aggregate.
+      console.warn('Không cập nhật được cột tổng hàng hóa; Ledger vẫn dùng Log Cloud:',itemError.message||itemError);
+    }
+
+    // 6) Sau khi Cloud thành công mới cập nhật local state và Tồn cuối.
+    const localItem=arr.find(x=>sameLedgerItemId(x.id,id));
+    if(localItem)Object.assign(localItem,preparedResult.updatedItem);
+    const localLogs=payload.map(l=>normalizeInventoryLogNumbers({
+      ...l,itemId:l.itemid,actionType:l.actiontype,userId:l.userid,username:currentUser.username||'',
+      dateKey:l.datekey,editedAt:null,editedBy:null,editDetail:'',time:l.time,unitCost:Number(l.unitcost||0)
+    }));
+    logs=[...localLogs,...logs];
+    sortLogsNewestFirst();
+    saveLocalState();
+    clearTableDraft(tab,id);
+    render();
+    showSuccessToast(`${preparedResult.prepared.length} giao dịch đã được ghi nhận`);
   }catch(err){
+    // Nếu lỗi sau khi insert nhưng chưa rollback ở nhánh verify, cố gắng rollback.
+    if(insertedIds.length){
+      try{ await supabaseClient.from('logs').delete().in('id',insertedIds); }catch(rollbackError){
+        console.error('Không thể rollback nhóm Log vừa ghi:',rollbackError);
+      }
+      insertedIds=[];
+    }
     console.error('Lỗi lưu bảng:',err);
-    showInventoryNotice('❌ CHƯA LƯU ĐƯỢC',`${err.message||err}\n\nDữ liệu trên dòng chưa được ghi nhận hoặc đã được đồng bộ lại từ Cloud.`);
-  }finally{tableSavingKey='';}
+    // Đồng bộ lại từ Cloud nhưng KHÔNG xóa draft người dùng vừa nhập.
+    // Người dùng có thể xem lại số chờ lưu rồi bấm Lưu lại sau khi Cloud ổn định.
+    await syncCoreDataFromCloudSilently().catch(()=>{});
+    render();
+    showInventoryNotice('❌ CHƯA LƯU ĐƯỢC',`${err.message||err}\n\nChưa cập nhật Tồn cuối và số đang chờ lưu vẫn được giữ lại.`);
+  }finally{
+    tableSavingKey='';
+    updateTableRowUI(tab,id);
+  }
 }
 function tableHeader(tab){ return tab==='raw'?`<thead><tr><th><div id="tableActiveGroup">Tất cả</div></th><th>Tồn đầu</th><th>Nhập kho</th><th>Xuất kho</th><th>Tồn kho</th><th>Xác nhận</th></tr></thead>`:`<thead><tr><th><div id="tableActiveGroup">Tất cả</div></th><th>Tồn đầu</th><th>Nấu thêm</th><th>Xuất bán</th><th>Thu hồi</th><th>Hủy</th><th>Tồn cuối</th><th>Xác nhận</th></tr></thead>`; }
 function tableRowRaw(item,report){ const key=tableDraftKey('raw',item.id),s=tableCurrentStats('raw',item); return `<tr class="data-row"><td><div class="item-cell-name">${tableEsc(item.name)}</div><div class="item-cell-unit">ĐVT: ${tableEsc(item.unit)}</div></td><td><div class="stock-static">${fmt(s.opening)}</div></td><td>${tableCellInput('raw',item,'import',report)}</td><td>${tableCellInput('raw',item,'export',report)}</td><td><div data-stock-end-key="${tableEsc(key)}" style="font-size:17px;font-weight:900;color:${(tableStockEnd('raw',item)<0)?'#dc2626':'#0284c7'}">${fmt(tableStockEnd('raw',item))}</div></td><td><button type="button" data-save-key="${tableEsc(key)}" class="entry-save ${tableDraftHasData('raw',item.id)&&!report?'ready':''}" ${report||!tableDraftHasData('raw',item.id)?'disabled':''} onclick="saveTableRow('raw','${tableEsc(item.id)}')">Lưu</button></td></tr>`; }
