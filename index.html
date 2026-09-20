@@ -1494,14 +1494,13 @@ async function confirmAllDrafts() {
       return showInventoryNotice('⚠️ Chưa có giao dịch', 'Vui lòng nhập số lượng hoặc bấm “Lưu tạm” ít nhất 1 thao tác.');
     }
 
-    // Đọc lại đúng mặt hàng từ Cloud ngay trước khi kiểm tra tồn.
-    // Không dùng object cũ đang nằm trên màn hình để quyết định giao dịch.
+    // Đọc mặt hàng + Ledger Cloud SONG SONG. Đây là 2 request độc lập,
+    // không cần chờ request thứ nhất xong mới bắt đầu request thứ hai.
     const itemTable = draftTab === 'raw' ? 'raw_items' : 'fg_items';
-    const { data: freshItem, error: freshError } = await supabaseClient
-      .from(itemTable)
-      .select('*')
-      .eq('id', itemFromUi.id)
-      .maybeSingle();
+    const [{ data: freshItem, error: freshError }, { data: freshLogRows, error: freshLogsError }] = await Promise.all([
+      supabaseClient.from(itemTable).select('*').eq('id', itemFromUi.id).maybeSingle(),
+      supabaseClient.from('logs').select('*').eq('itemid', itemFromUi.id)
+    ]);
 
     if (freshError) {
       return showInventoryNotice(
@@ -1515,11 +1514,6 @@ async function confirmAllDrafts() {
         'Mặt hàng không còn tồn tại trên Cloud. Dữ liệu chưa được lưu.'
       );
     }
-
-    const { data: freshLogRows, error: freshLogsError } = await supabaseClient
-      .from('logs')
-      .select('*')
-      .eq('itemid', itemFromUi.id);
 
     if (freshLogsError) {
       return showInventoryNotice('❌ Không thể kiểm tra Ledger mới nhất',
@@ -1620,18 +1614,24 @@ async function confirmAllDrafts() {
     }
 
     try {
-      // 1) Ghi Log trước. Nếu lỗi thì item Cloud chưa bị thay đổi.
-      const { error: logError } = await supabaseClient
+      // 1) Một request insert có .select('id') vừa ghi vừa xác nhận Cloud đã nhận đủ Log.
+      // Không cần thêm một vòng query verify Ledger ngay sau đó; Ledger đã được
+      // chuẩn bị/kiểm tra đầy đủ trước khi ghi và Log Cloud là nguồn sự thật.
+      const { data: insertedRows, error: logError } = await supabaseClient
         .from('logs')
-        .insert(payloadSupabaseList);
+        .insert(payloadSupabaseList)
+        .select('id');
       if (logError) {
         throw new Error(`Không thể ghi Nhật Ký Cloud: ${logError.message || logError}`);
       }
+      const insertedIds = new Set((insertedRows || []).map(x => x.id));
+      if (insertedIds.size !== payloadSupabaseList.length || payloadSupabaseList.some(x => !insertedIds.has(x.id))) {
+        // Nếu server trả về thiếu ID thì không coi giao dịch là thành công.
+        await supabaseClient.from('logs').delete().in('id', payloadSupabaseList.map(x => x.id));
+        throw new Error(`Cloud xác nhận thiếu Log: cần ${payloadSupabaseList.length}, nhận ${insertedIds.size}.`);
+      }
 
-      // 2) Log Cloud là nguồn sự thật của tồn kho.
-      // Các cột tổng trên raw_items/fg_items chỉ là dữ liệu phụ. Nếu update
-      // các cột tổng bị RLS/permission chặn thì KHÔNG được làm mất Log vừa ghi,
-      // vì nếu rollback Log ở đây sẽ tái diễn lỗi 'giao dịch không vào Database'.
+      // 2) Cột tổng chỉ là dữ liệu phụ. Cập nhật song song sau khi Log đã chắc chắn tồn tại.
       const { error: itemError } = await supabaseClient
         .from(itemTable)
         .update(updatedItem)
@@ -2055,10 +2055,7 @@ async function saveLogEdit() {
   try {
     const table = l.tab === 'raw' ? 'raw_items' : 'fg_items';
 
-    const { error: itemError } = await supabaseClient.from(table).upsert(updatedItem);
-    if (itemError) throw new Error(`Không thể cập nhật tồn kho Cloud: ${itemError.message || itemError}`);
-
-    const { error: logError } = await supabaseClient.from('logs').update({
+    const logPatch = {
       qty: n,
       before: Number(resultMap.get(l.id)?.before ?? l.before ?? 0),
       after: Number(newAfter),
@@ -2066,10 +2063,17 @@ async function saveLogEdit() {
       editedat: editedAt,
       editedby: editedBy,
       ...(l.tab === 'raw' && normalizeActionType(l) === 'export' ? { yieldqty: Math.round((Math.max(0, logConversionQty(l) - logWasteQty(l)) / Math.max(0.000001, logUsagePerProduct(l))) * n) } : {}),
-    }).eq('id', l.id);
-    if (logError) {
+    };
+
+    // Hai bản ghi cùng một mặt hàng: ghi song song để giảm 1 vòng chờ mạng.
+    const [itemResult, logResult] = await Promise.all([
+      supabaseClient.from(table).upsert(updatedItem),
+      supabaseClient.from('logs').update(logPatch).eq('id', l.id)
+    ]);
+    if (itemResult.error) throw new Error(`Không thể cập nhật tồn kho Cloud: ${itemResult.error.message || itemResult.error}`);
+    if (logResult.error) {
       await supabaseClient.from(table).upsert(originalItem);
-      throw new Error(`Không thể cập nhật Nhật Ký Cloud: ${logError.message || logError}`);
+      throw new Error(`Không thể cập nhật Nhật Ký Cloud: ${logResult.error.message || logResult.error}`);
     }
 
     Object.assign(x, updatedItem);
@@ -2169,16 +2173,23 @@ async function deleteLog(id) {
     const { error: logError } = await supabaseClient.from('logs').delete().eq('id', id);
     if (logError) throw new Error(`Không thể xóa nhật ký trên Cloud: ${logError.message || logError}`);
 
-    const { error: itemError } = await supabaseClient.from(table).upsert(x);
-    if (itemError) throw new Error(`Không thể cập nhật tồn kho Cloud sau khi xóa: ${itemError.message || itemError}`);
-
-    // Cập nhật before/after Cloud cho các giao dịch còn lại để Nhật Ký và Ledger cùng một trạng thái.
+    // Sau khi xóa, các mốc before/after của các Log phía sau có thể thay đổi.
+    // Ghi cột tổng và các Log liên quan SONG SONG thay vì chờ từng request một.
+    const updatePromises = [
+      supabaseClient.from(table).upsert(x)
+    ];
     for (const a of affectedLogs) {
       const r = resultMap.get(a.id);
       if (!r) continue;
-      const { error } = await supabaseClient.from('logs').update({ before:Number(r.before), after:Number(r.after) }).eq('id', a.id);
-      if (error) throw new Error(`Không thể cập nhật mốc Tồn của nhật ký ${a.id}: ${error.message || error}`);
+      updatePromises.push(
+        supabaseClient.from('logs').update({ before:Number(r.before), after:Number(r.after) }).eq('id', a.id)
+      );
     }
+    const updateResults = await Promise.all(updatePromises);
+    const itemResult = updateResults[0];
+    if (itemResult.error) throw new Error(`Không thể cập nhật tồn kho Cloud sau khi xóa: ${itemResult.error.message || itemResult.error}`);
+    const failedLogUpdate = updateResults.slice(1).find(r => r.error);
+    if (failedLogUpdate?.error) throw new Error(`Không thể cập nhật mốc Tồn của nhật ký sau khi xóa: ${failedLogUpdate.error.message || failedLogUpdate.error}`);
 
     logs = oldLogs.filter(z => z.id !== id).map(z => {
       const r = resultMap.get(z.id);
@@ -3010,11 +3021,15 @@ async function saveTableRow(tab,id){
       time:dateTime(),editedat:null,editedby:null
     }));
 
-    const {error:insertError}=await supabaseClient.from('logs').insert(payload);
+    const {data:insertedRows,error:insertError}=await supabaseClient.from('logs').insert(payload).select('id');
     if(insertError)throw new Error(`Không thể ghi Nhật Ký Cloud: ${insertError.message||insertError}`);
+    const insertedIds=new Set((insertedRows||[]).map(x=>x.id));
+    if(insertedIds.size!==payload.length || payload.some(x=>!insertedIds.has(x.id))){
+      await supabaseClient.from('logs').delete().in('id',payload.map(x=>x.id));
+      throw new Error(`Cloud xác nhận thiếu Log: cần ${payload.length}, nhận ${insertedIds.size}.`);
+    }
 
     try{
-      const verified=await verifyCloudLedgerItem(tab,freshItem.id,preparedResult.stock);
       const {error:itemError}=await supabaseClient.from(itemTable).update(preparedResult.updatedItem).eq('id',freshItem.id);
       if(itemError)console.warn('Không cập nhật được cột tổng hàng hóa; Ledger vẫn dùng Log Cloud:',itemError.message||itemError);
 
