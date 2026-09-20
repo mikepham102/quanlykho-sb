@@ -105,18 +105,18 @@
     /* Nhật Ký — thẻ giao dịch 2 bên, rõ người / mặt hàng / trạng thái */
     .audit-transaction-card { background:#fff; border-radius:16px; padding:13px 14px; border:1px solid #d8e7f0; box-shadow:0 3px 12px rgba(15,23,42,.06); }
     .audit-topline { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
-    .audit-employee { color:#f8fafc; background:linear-gradient(135deg,#0f3d5e,#075985); padding:7px 11px; border-radius:10px; font-size:15px; font-weight:900; line-height:1.15; box-shadow:0 2px 5px rgba(7,89,133,.18); }
-    .audit-time { color:#64748b; font-size:10px; font-weight:800; white-space:nowrap; }
+    .audit-employee { color:#f8fafc; background:linear-gradient(135deg,#0f3d5e,#075985); padding:7px 11px; border-radius:10px; font-size:13px; font-weight:900; line-height:1.15; box-shadow:0 2px 5px rgba(7,89,133,.18); }
+    .audit-time { color:#64748b; font-size:16px; font-weight:800; white-space:nowrap; }
     .audit-detail-row { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:28px; }
-    .audit-item-name { min-width:0; flex:1; color:#102a43; font-size:13px; font-weight:850; line-height:1.25; }
+    .audit-item-name { min-width:0; flex:1; color:#102a43; font-size:16px; background: linear-gradient(82deg, #fdba74, #dbe0e2); font-weight:850; line-height:1.25; }
     .audit-status { flex:0 0 auto; font-size:14px; font-weight:900; padding:5px 9px; border-radius:9px; line-height:1.1; white-space:nowrap; }
     .audit-status.import,.audit-status.production { background:#dcfce7; color:#166534; border:1px solid #86efac; }
     .audit-status.export,.audit-status.sales,.audit-status.waste { background:#dbeafe; color:#075985; border:1px solid #7dd3fc; }
     .audit-status.return { background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }
     .audit-status.stocktake,.audit-status.data_repair { background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; }
-    .audit-group-name { color:#991b1b; font-size:10px; font-weight:850; }
-    .audit-qty { color:#0f172a; font-size:13px; font-weight:900; white-space:nowrap; }
-    .audit-qty .unit { color:#475569; font-size:10px; font-weight:850; }
+    .audit-group-name { color:#991b1b; font-size:16px; font-weight:850; }
+    .audit-qty { color:#0f172a; font-size:16px; font-weight:900; white-space:nowrap; }
+    .audit-qty .unit { color:#475569; font-size:12px; font-weight:850; }
     .audit-divider { height:1px; background:#edf2f7; margin:7px 0; }
     .audit-conversion{margin:-1px 0 7px;padding:6px 8px;border-radius:8px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:9px;font-weight:800;line-height:1.35}
     .audit-search-box { display:flex; align-items:stretch; gap:8px; padding:10px; margin-bottom:2px; background:#fff; border:1px solid #d8e7f0; border-radius:14px; box-shadow:0 2px 8px rgba(15,23,42,.05); }
@@ -320,30 +320,11 @@
 <script>
   // Hong/Quản Lý Kho SB - cache/version bootstrap for iPhone Home Screen WebApp
   // Tăng BUILD_VERSION mỗi lần deploy index.html mới.
-  const BUILD_VERSION = 'SB-V5';
+  const BUILD_VERSION = 'SB-V6-LEDGER';
   const VERSION_KEY = 'sb_app_build_version';
   try {
     const oldVersion = localStorage.getItem(VERSION_KEY);
     localStorage.setItem(VERSION_KEY, BUILD_VERSION);
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=' + encodeURIComponent(BUILD_VERSION), {scope: './'})
-          .then(reg => {
-            // Ask an updated worker to activate immediately when available.
-            if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
-            reg.addEventListener('updatefound', () => {
-              const worker = reg.installing;
-              if (!worker) return;
-              worker.addEventListener('statechange', () => {
-                if (worker.state === 'installed' && navigator.serviceWorker.controller) {
-                  worker.postMessage({type:'SKIP_WAITING'});
-                }
-              });
-            });
-          })
-          .catch(err => console.warn('Service Worker update check failed:', err));
-      });
-    }
   } catch (e) { console.warn('Version bootstrap unavailable:', e); }
 </script>
 </head>
@@ -490,7 +471,7 @@ async function fetchInitialData() {
     normalizeSortOrders(raw);
     normalizeSortOrders(fg);
     
-    if (logRes.data && logRes.data.length > 0) {
+    if (Array.isArray(logRes.data)) {
       logs = logRes.data.map(l => normalizeInventoryLogNumbers({
         id: l.id,
         tab: l.tab,
@@ -514,8 +495,7 @@ async function fetchInitialData() {
       })).map(normalizeInventoryLogNumbers).sort((a,b) => (Number(b.timestamp)||0) - (Number(a.timestamp)||0) || String(b.id).localeCompare(String(a.id)));
       localStorage.setItem('awan_logs_backup', JSON.stringify(logs));
     } else {
-      const backup = localStorage.getItem('awan_logs_backup');
-      if (backup) logs = JSON.parse(backup);
+      logs = [];
     }
 
     if (Array.isArray(configRes.data)) {
@@ -612,7 +592,7 @@ function startInventoryRealtime() {
 
 function roleLabel(role) { return ({ admin: 'Admin Owner', owner: 'Owner', manager: 'Quản Lý', staff: 'Nhân Viên' })[role] || role; }
 function dateTime() { return new Date().toLocaleString('vi-VN'); }
-function fmt(num) { return normalizeQty1(num).toLocaleString('vi-VN', { maximumFractionDigits: 1, minimumFractionDigits: 0 }); }
+function fmt(num) { const n=Number(num); if(!Number.isFinite(n)) return '—'; return normalizeQty1(n).toLocaleString('vi-VN', { maximumFractionDigits: 1, minimumFractionDigits: 0 }); }
 function normalizeQty1(value) {
   const n = Number(String(value ?? '').replace(',', '.'));
   if (!Number.isFinite(n)) return 0;
@@ -679,70 +659,222 @@ function getLedgerLogs(tab, itemId, endTime = Infinity, item = null) {
     .sort((a,b) => logTimestamp(a.l,a.idx) - logTimestamp(b.l,b.idx));
 }
 
-function applyLedgerEvent(tab, stock, log) {
-  const type = normalizeActionType(log);
-  const q = Number(log.qty || 0);
-
-  if (type === 'stocktake') {
-    const target = Number(log.after);
-    return Number.isFinite(target) && target >= 0 ? target : stock;
-  }
-
-  if (!Number.isFinite(q) || q < 0) return stock;
-
-  if (tab === 'raw') {
-    if (type === 'import') return stock + q;
-    if (type === 'export') return stock - q;
-  } else {
-    if (type === 'production') return stock + q;
-    if (type === 'sales' || type === 'waste') return stock - q;
-    if (type === 'return') return stock + q;
-  }
-  return stock;
-}
-
 function normalizeLedgerNumber(value) {
   return normalizeQty1(value);
 }
 
-function calculateStockFromLogs(tab, item, sourceLogs, endTime = Infinity) {
-  const all = (sourceLogs || [])
-    .filter(l => logBelongsToItem(l, tab, item))
+function ledgerLogOrder(sourceLogs, tab, item, endTime = Infinity, deletedLogId = null) {
+  return (sourceLogs || [])
+    .filter(l => l && logBelongsToItem(l, tab, item) && l.id !== deletedLogId)
     .map((l, idx) => ({ l, idx, ts: logTimestamp(l, idx) }))
     .filter(o => {
       const d = getLogDate(o.l);
       return !d || Number.isNaN(d.getTime()) || d.getTime() <= endTime;
     })
-    .sort((a,b) => a.ts - b.ts || a.idx - b.idx);
+    .sort((a,b) => {
+      const byTs = a.ts - b.ts;
+      if (byTs !== 0) return byTs;
+      const ai = String(a.l?.id || '');
+      const bi = String(b.l?.id || '');
+      const byId = ai.localeCompare(bi);
+      return byId !== 0 ? byId : a.idx - b.idx;
+    });
+}
 
-  // Kiểm kê là MỐC GỐC MỚI của tồn kho. Lấy lần kiểm kê gần nhất làm
-  // điểm bắt đầu, sau đó chỉ cộng/trừ các giao dịch phát sinh sau mốc đó.
-  // Điều này loại bỏ hoàn toàn ảnh hưởng của lịch sử sai trước khi kiểm kê.
-  let stock = Number(item?.opening || 0);
-  if (!Number.isFinite(stock) || stock < 0) stock = 0;
+function ledgerQtyForLog(log, overrideLogId = null, overrideQty = null) {
+  return log?.id === overrideLogId ? normalizeLedgerNumber(overrideQty) : normalizeLedgerNumber(log?.qty);
+}
 
-  let startIndex = 0;
+// Một nguồn sự thật duy nhất cho Ledger.
+// Quy tắc vật lý:
+//   1) Nếu có Kiểm kê hợp lệ, lần Kiểm kê gần nhất là mốc tồn mới.
+//   2) Chỉ giao dịch SAU mốc đó được cộng/trừ vào tồn hiện tại.
+//   3) Lịch sử trước mốc vẫn được giữ để đối soát Xuất bán ↔ Thu hồi/Hủy và thống kê.
+//   4) Không bao giờ âm thầm biến tồn âm thành 0.
+function replayLedger(tab, item, sourceLogs, options = {}) {
+  const {
+    endTime = Infinity,
+    overrideLogId = null,
+    overrideQty = null,
+    deletedLogId = null,
+    validatePhysical = false,
+    validateRelations = false
+  } = options;
+
+  const all = ledgerLogOrder(sourceLogs, tab, item, endTime, deletedLogId);
+  let opening = normalizeLedgerNumber(item?.opening || 0);
+  if (!Number.isFinite(opening) || opening < 0) opening = 0;
+
+  // Xác định mốc Kiểm kê gần nhất trước khi replay.
+  let latestStocktakeIndex = -1;
+  let latestStocktake = null;
   for (let i = all.length - 1; i >= 0; i--) {
-    if (normalizeActionType(all[i].l) !== 'stocktake') continue;
-    const target = Number(all[i].l.after);
-    if (!Number.isFinite(target) || target < 0) continue;
-    stock = target;
-    startIndex = i + 1;
+    const type = normalizeActionType(all[i].l);
+    if (type !== 'stocktake') continue;
+    const target = ledgerQtyForLog({ qty: all[i].l.after }, overrideLogId, overrideQty);
+    if (!Number.isFinite(target) || target < 0) {
+      return { ok:false, code:'invalid_stocktake', message:`Nhật ký kiểm kê của ${item.name} có Tồn thực tế không hợp lệ.` };
+    }
+    latestStocktakeIndex = i;
+    latestStocktake = { id: all[i].l.id, index:i, target:normalizeLedgerNumber(target), timestamp:all[i].ts };
     break;
   }
 
-  for (let i = startIndex; i < all.length; i++) {
+  // Tồn vật lý được dựng từ đầu lịch sử để tạo before/after đầy đủ cho nhật ký.
+  // Tuy nhiên chỉ đoạn SAU kiểm kê gần nhất mới được kiểm tra điều kiện âm.
+  let stock = opening;
+  const state = {
+    opening,
+    imported:0, exported:0,
+    production:0, sales:0, returned:0, waste:0,
+    adjustment:0,
+    soldOutstanding:0,
+    latestStocktake
+  };
+  const cumulative = { imported:0, exported:0, production:0, sales:0, returned:0, waste:0 };
+  const results = [];
+  const relationIssues = [];
+
+  // Quan hệ Xuất bán ↔ Thu hồi/Hủy chạy trên TOÀN BỘ lịch sử.
+  // Kiểm kê chỉ reset tồn vật lý, không xóa nghĩa vụ Thu hồi/Hủy của hàng đã bán.
+  if (tab === 'fg') {
+    for (const o of all) {
+      const l = o.l;
+      const type = normalizeActionType(l);
+      const qty = ledgerQtyForLog(l, overrideLogId, overrideQty);
+      if (!Number.isFinite(qty) || qty < 0) {
+        return { ok:false, code:'invalid_qty', message:`Nhật ký "${l.action}" của ${item.name} có số lượng không hợp lệ.` };
+      }
+      if (type === 'sales') {
+        state.soldOutstanding = normalizeLedgerNumber(state.soldOutstanding + qty);
+        cumulative.sales = normalizeLedgerNumber(cumulative.sales + qty);
+      } else if (type === 'return' || type === 'waste') {
+        if (qty > state.soldOutstanding + 1e-9) {
+          const issue = {
+            id:l.id, action:l.action, qty, available:normalizeLedgerNumber(state.soldOutstanding), unit:item.unit
+          };
+          relationIssues.push(issue);
+          if (validateRelations) {
+            return {
+              ok:false,
+              code:'invalid_relation',
+              message:`Nhật ký "${l.action}" ${fmt(qty)} ${item.unit} vượt quá phần đã Xuất bán nhưng chưa được Thu hồi/Hủy. Phần còn có thể xử lý chỉ ${fmt(Math.max(0,state.soldOutstanding))} ${item.unit}.`
+            };
+          }
+          // Dữ liệu cũ sai quan hệ không được phép tạo ra quyền Thu hồi/Hủy âm.
+          // Tồn vật lý vẫn replay độc lập; quyền xử lý mới bắt đầu lại từ 0.
+          state.soldOutstanding = 0;
+        } else {
+          state.soldOutstanding = normalizeLedgerNumber(state.soldOutstanding - qty);
+        }
+        if (type === 'return') cumulative.returned = normalizeLedgerNumber(cumulative.returned + qty);
+        else cumulative.waste = normalizeLedgerNumber(cumulative.waste + qty);
+      } else if (type === 'production') {
+        cumulative.production = normalizeLedgerNumber(cumulative.production + qty);
+      }
+    }
+  } else {
+    for (const o of all) {
+      const type = normalizeActionType(o.l);
+      const qty = ledgerQtyForLog(o.l, overrideLogId, overrideQty);
+      if (!Number.isFinite(qty) || qty < 0) {
+        return { ok:false, code:'invalid_qty', message:`Nhật ký "${o.l.action}" của ${item.name} có số lượng không hợp lệ.` };
+      }
+      if (type === 'import') cumulative.imported = normalizeLedgerNumber(cumulative.imported + qty);
+      else if (type === 'export') cumulative.exported = normalizeLedgerNumber(cumulative.exported + qty);
+    }
+  }
+
+  // Replay đầy đủ để before/after của lịch sử luôn có nghĩa.
+  // Đồng thời xác định tồn vật lý cuối cùng.
+  for (let i = 0; i < all.length; i++) {
     const l = all[i].l;
     const type = normalizeActionType(l);
+    const qty = ledgerQtyForLog(l, overrideLogId, overrideQty);
+
     if (type === 'stocktake') {
-      const target = Number(l.after);
-      if (Number.isFinite(target) && target >= 0) stock = target;
+      const target = ledgerQtyForLog({ qty:l.after }, overrideLogId, overrideQty);
+      if (!Number.isFinite(target) || target < 0) {
+        return { ok:false, code:'invalid_stocktake', message:`Nhật ký kiểm kê của ${item.name} có Tồn thực tế không hợp lệ.` };
+      }
+      const before = normalizeLedgerNumber(stock);
+      stock = normalizeLedgerNumber(target);
+      results.push({ id:l.id, before, after:stock, type });
+      continue;
+    }
+    if (type === 'data_repair') {
+      results.push({ id:l.id, before:normalizeLedgerNumber(stock), after:normalizeLedgerNumber(stock), type });
+      continue;
+    }
+    if (!type || !Number.isFinite(qty) || qty < 0) {
+      return { ok:false, code:'invalid_action', message:`Nhật ký "${l.action}" của ${item.name} có loại giao dịch hoặc số lượng không hợp lệ.` };
+    }
+
+    const before = normalizeLedgerNumber(stock);
+    const decreasing = isStockDecreasingAction(tab, type);
+    // Chỉ kiểm tra âm ở các giao dịch SAU mốc kiểm kê gần nhất.
+    const physicalBaselineEstablished = latestStocktakeIndex >= 0;
+    const shouldValidatePhysical = validatePhysical && (!physicalBaselineEstablished || i > latestStocktakeIndex);
+    if (shouldValidatePhysical && decreasing && qty > before + 1e-9) {
+      return {
+        ok:false,
+        code:'negative_stock',
+        message:`Không thể thực hiện/sửa vì "${l.action}" ${fmt(qty)} ${item.unit} vượt quá tồn khả dụng ${fmt(before)} ${item.unit}.`
+      };
+    }
+
+    if (tab === 'raw') {
+      if (type === 'import') stock += qty;
+      else if (type === 'export') stock -= qty;
+      else return { ok:false, code:'invalid_action', message:`Không xác định được loại giao dịch của nhật ký "${l.action}".` };
     } else {
-      stock = applyLedgerEvent(tab, stock, l);
+      if (type === 'production') stock += qty;
+      else if (type === 'sales') stock -= qty;
+      else if (type === 'return') stock += qty;
+      else if (type === 'waste') stock -= qty;
+      else return { ok:false, code:'invalid_action', message:`Không xác định được loại giao dịch của nhật ký "${l.action}".` };
     }
     stock = normalizeLedgerNumber(stock);
+    if (shouldValidatePhysical && decreasing && stock < -1e-9) {
+      return { ok:false, code:'negative_stock', message:`Giao dịch "${l.action}" làm tồn kho âm ${fmt(stock)} ${item.unit}.` };
+    }
+    results.push({ id:l.id, before, after:stock, type });
+
+    // state = giao dịch sau mốc kiểm kê, dùng cho các màn hình/logic vận hành.
+    if (i > latestStocktakeIndex || latestStocktakeIndex < 0) {
+      if (tab === 'raw') {
+        if (type === 'import') state.imported = normalizeLedgerNumber(state.imported + qty);
+        else if (type === 'export') state.exported = normalizeLedgerNumber(state.exported + qty);
+      } else {
+        if (type === 'production') state.production = normalizeLedgerNumber(state.production + qty);
+        else if (type === 'sales') state.sales = normalizeLedgerNumber(state.sales + qty);
+        else if (type === 'return') state.returned = normalizeLedgerNumber(state.returned + qty);
+        else if (type === 'waste') state.waste = normalizeLedgerNumber(state.waste + qty);
+      }
+    }
   }
-  return normalizeLedgerNumber(stock);
+
+  // State.opening là mốc vật lý thực tế mà các giao dịch hiện tại đang nối tiếp.
+  state.opening = latestStocktake ? latestStocktake.target : opening;
+
+  return {
+    ok:true,
+    state,
+    cumulative,
+    results,
+    stock:normalizeLedgerNumber(stock),
+    latestStocktake,
+    relationIssues
+  };
+}
+
+function calculateStockFromLogs(tab, item, sourceLogs, endTime = Infinity) {
+  const replay = replayLedger(tab, item, sourceLogs, { endTime, validatePhysical:false, validateRelations:false });
+  if (!replay.ok) {
+    console.error('Ledger calculation failed:', replay);
+    return NaN;
+  }
+  return normalizeLedgerNumber(replay.stock);
 }
 
 function calculateStock(tab, item, endTime = Infinity) {
@@ -1081,8 +1213,6 @@ function getLogsBeforeFilter(logsArray, item, tab) {
 function getRangeStats(tab, item, startDate, endDate) {
   const opening = stockBeforeDate(tab, item, startDate);
   const period = getLogsInRange(tab, item, startDate, endDate);
-  let stock = opening;
-
   let imported = 0, exported = 0;
   let sales = 0, production = 0, returned = 0, waste = 0;
   let stocktakeCount = 0, lastStocktake = null;
@@ -1104,15 +1234,13 @@ function getRangeStats(tab, item, startDate, endDate) {
     if (type === 'stocktake') {
       const target = Number(l.after);
       if (Number.isFinite(target) && target >= 0) {
-        stock = target;
         stocktakeCount++;
         lastStocktake = target;
       }
-    } else {
-      stock = applyLedgerEvent(tab, stock, l);
     }
   }
 
+  const stock = stockAtDate(tab, item, endDate);
   return tab === 'raw'
     ? { opening, imported, exported, stock, stocktakeCount, lastStocktake }
     : { opening, sales, production, returned, waste, stock, stocktakeCount, lastStocktake };
@@ -1305,7 +1433,8 @@ function validateTransaction(tab, item, type, qty) {
 
   if (isStockDecreasingAction(tab, type)) {
     const available = getAvailableStock(tab, item);
-    if (n > available) {
+    if (!Number.isFinite(available)) return 'Không thể xác định tồn kho từ Nhật Ký Cloud. Vui lòng tải lại dữ liệu trước khi giao dịch.';
+    if (n > available + 1e-9) {
       return `Không đủ tồn kho để ${actionLabel(tab, type)}. Tồn hiện có: ${fmt(available)} ${item.unit}.`;
     }
   }
@@ -1406,91 +1535,28 @@ async function confirmAllDrafts() {
       editedBy: l.editedby || null, time: l.time || '', unitCost: Number(l.unitcost || 0), conversionUnit: l.conversionunit || '', conversionQty: Number(l.conversionqty || 0), dosage: Number(l.dosage || 0), wasteQty: Number(l.wasteqty || 0), yieldQty: Number(l.yieldqty || 0)
     }));
 
-    // Tất cả validation + before/after chạy trên Ledger Cloud mới nhất.
-    const trial = JSON.parse(JSON.stringify(freshItem));
-    const prepared = [];
-    let trialStock = normalizeLedgerNumber(calculateStockFromLogs(draftTab, freshItem, freshLogs));
-    // Tính lượng Xuất bán còn có thể Thu hồi/Hủy từ toàn bộ Ledger Cloud.
-    // Kiểm kê không xóa quan hệ này.
-    let trialSoldOutstanding = 0;
-    if (draftTab === 'fg') {
-      const orderedFreshLogs = freshLogs
-        .filter(l => logBelongsToItem(l, 'fg', freshItem))
-        .map((l, idx) => ({l, idx}))
-        .sort((a,b) => logTimestamp(a.l,a.idx) - logTimestamp(b.l,b.idx) || a.idx - b.idx);
-      for (const {l} of orderedFreshLogs) {
-        const t = normalizeActionType(l);
-        const q = Number(l.qty || 0);
-        if (t === 'sales') trialSoldOutstanding = normalizeLedgerNumber(trialSoldOutstanding + q);
-        else if (t === 'return' || t === 'waste') trialSoldOutstanding = normalizeLedgerNumber(trialSoldOutstanding - q);
-      }
+    // Toàn bộ validation của luồng modal dùng CHUNG một helper với luồng
+    // nhập trực tiếp trên bảng. Không còn hai cách tính tồn khác nhau.
+    const preparedResult = prepareLedgerTransactions(draftTab, normalizeInventoryItemNumbers(freshItem, draftTab), freshLogs, drafts);
+    if (!preparedResult.ok) {
+      const title = preparedResult.code === 'invalid_relation'
+        ? '⚠️ KHÔNG ĐỦ PHẦN ĐÃ XUẤT BÁN'
+        : preparedResult.code === 'negative_stock'
+          ? '⚠️ KHÔNG ĐỦ TỒN KHO'
+          : '❌ KHÔNG THỂ GHI NHẬN';
+      return showInventoryNotice(title, `${preparedResult.message || 'Không thể chuẩn bị giao dịch theo Ledger.'}\n\nDữ liệu chưa được lưu.`);
     }
 
-    // Không khóa toàn bộ giao dịch chỉ vì dữ liệu lịch sử đang âm.
-    // Giao dịch tăng tồn (Nấu thêm/Thu hồi/Nhập kho) được phép dùng để phục hồi Ledger.
-    // Chỉ giao dịch làm giảm tồn mới bị chặn nếu vượt quá tồn khả dụng.
-    if (!Number.isFinite(trialStock)) {
-      return showInventoryNotice('❌ KHÔNG THỂ XÁC ĐỊNH TỒN KHO',
-        'Ledger Cloud trả về giá trị không hợp lệ. Dữ liệu chưa được lưu.');
-    }
-    for (const draft of drafts) {
-      const qty = Number(draft.qty);
-      if (!validatePositiveQty(qty)) {
-        return showInventoryNotice('⚠️ KHÔNG THỂ GHI NHẬN',
-          'Số lượng phải lớn hơn 0.\n\nDữ liệu chưa được lưu.');
-      }
-
-      const before = normalizeLedgerNumber(trialStock);
-      const decreasing = isStockDecreasingAction(draftTab, draft.type);
-      if (draftTab === 'fg' && (draft.type === 'return' || draft.type === 'waste')) {
-        if (qty > trialSoldOutstanding + 1e-9) {
-          return showInventoryNotice(
-            '⚠️ KHÔNG ĐỦ PHẦN ĐÃ XUẤT BÁN',
-            `${actionLabel(draftTab, draft.type)} ${fmt(qty)} ${freshItem.unit} vượt quá phần đã Xuất bán nhưng chưa được Thu hồi/Hủy.\n\nPhần còn có thể xử lý chỉ ${fmt(Math.max(0, trialSoldOutstanding))} ${freshItem.unit}.\nDữ liệu chưa được lưu.`
-          );
-        }
-        trialSoldOutstanding = normalizeLedgerNumber(trialSoldOutstanding - qty);
-      } else if (draftTab === 'fg' && draft.type === 'sales') {
-        trialSoldOutstanding = normalizeLedgerNumber(trialSoldOutstanding + qty);
-      }
-      if (decreasing && qty > Math.max(0, before) + 1e-9) {
-        const verb = draftTab === 'raw'
-          ? 'xuất kho'
-          : (draft.type === 'sales' ? 'xuất bán' : 'hủy món');
-        return showInventoryNotice(
-          '⚠️ KHÔNG ĐỦ TỒN KHO',
-          `Bạn nhập ${fmt(qty)} ${freshItem.unit} để ${verb}, nhưng tồn khả dụng chỉ ${fmt(Math.max(0,before))} ${freshItem.unit}.\n\nSố lượng này sẽ làm tồn âm nên hệ thống đã chặn.\nDữ liệu chưa được lưu.`
-        );
-      }
-
-      let after = before;
-      if (draftTab === 'raw') {
-        if (draft.type === 'import') after += qty;
-        else if (draft.type === 'export') after -= qty;
-        else return showInventoryNotice('⚠️ THAO TÁC KHÔNG HỢP LỆ', 'Kho Thô chỉ cho phép Nhập kho hoặc Xuất kho.');
-      } else {
-        if (draft.type === 'production' || draft.type === 'return') after += qty;
-        else if (draft.type === 'sales' || draft.type === 'waste') after -= qty;
-        else return showInventoryNotice('⚠️ THAO TÁC KHÔNG HỢP LỆ', 'Thành phẩm chỉ cho phép Xuất bán, Nấu thêm, Thu hồi hoặc Hủy món.');
-      }
-
-      after = normalizeLedgerNumber(after);
-      if (decreasing && after < 0) {
-        return showInventoryNotice(
-          '⚠️ GIAO DỊCH BỊ CHẶN',
-          `${actionLabel(draftTab, draft.type)} ${fmt(qty)} ${freshItem.unit} làm tồn kho âm.\nTồn sau dự kiến: ${fmt(after)} ${freshItem.unit}.\n\nKhông có dữ liệu nào được ghi.`
-        );
-      }
-
-      applyDraftToItem(trial, draftTab, draft.type, qty);
-      trialStock = after;
-      prepared.push({ draft, qty, before, after });
-    }
-
+    const prepared = preparedResult.prepared.map(p => ({
+      draft: p,
+      qty: p.qty,
+      before: p.before,
+      after: p.after
+    }));
     const savedTab = draftTab;
     const savedItemId = freshItem.id;
     const originalItem = JSON.parse(JSON.stringify(freshItem));
-    const updatedItem = JSON.parse(JSON.stringify(trial));
+    const updatedItem = JSON.parse(JSON.stringify(preparedResult.updatedItem));
     const logsToInsert = [];
     const payloadSupabaseList = [];
     const now = Date.now();
@@ -1833,176 +1899,49 @@ function logTimestamp(log, fallbackIndex = 0) {
   return Number.isFinite(t) ? t : fallbackIndex;
 }
 function normalizeActionType(log) {
-  if (log.actionType) return log.actionType;
-  const a = String(log.action || '');
-  if (a === 'Nhập' || a === 'Nhập kho') return 'import';
-  if (a === 'Xuất' || a === 'Xuất kho') return 'export';
-  if (a === 'Xuất bán') return 'sales';
-  if (a === 'Nấu thêm') return 'production';
-  if (a === 'Thu hồi' || a === 'Thu hồi cuối ngày') return 'return';
-  if (a === 'Hủy món') return 'waste';
-  // Dữ liệu điều chỉnh cũ được coi là sự kiện kiểm kê để không làm mất lịch sử.
-  // Tương thích dữ liệu cũ: các bản ghi "Điều chỉnh" cũ được đọc như một
-  // mốc Kiểm kê; từ phiên bản này không tạo thêm loại giao dịch Điều chỉnh.
-  if (a === 'Điều chỉnh tăng' || a === 'Điều chỉnh giảm' || log.actionType === 'adjustment') return 'stocktake';
-  if (a === 'Kiểm kê' || log.actionType === 'stocktake') return 'stocktake';
-  if (a === 'Sửa dữ liệu lỗi cũ') return 'data_repair';
-  return null;
-}
-function applyLedgerMovement(tab, state, type, qty) {
-  const n = Number(qty);
-  if (!Number.isFinite(n) || n <= 0) return false;
-  if (tab === 'raw') {
-    if (type === 'import') state.imported += n;
-    else if (type === 'export') state.exported += n;
-    else return false;
-  } else {
-    if (type === 'sales') state.sales += n;
-    else if (type === 'production') state.production += n;
-    else if (type === 'return') state.returned += n;
-    else if (type === 'waste') state.waste += n;
-    else return false;
-  }
-  return true;
-}
+  const rawType = String(log?.actionType ?? log?.actiontype ?? '').trim().toLowerCase();
+  if (['import','nhap','nhập','nhap kho','nhập kho'].includes(rawType)) return 'import';
+  if (['export','xuat','xuất','xuat kho','xuất kho'].includes(rawType)) return 'export';
+  if (['sales','sale','xuat ban','xuất bán'].includes(rawType)) return 'sales';
+  if (['production','nau them','nấu thêm'].includes(rawType)) return 'production';
+  if (['return','thu hoi','thu hồi','thu hồi cuối ngày'].includes(rawType)) return 'return';
+  if (['waste','huy mon','hủy món'].includes(rawType)) return 'waste';
+  if (['stocktake','inventory','kiem ke','kiểm kê','adjustment'].includes(rawType)) return 'stocktake';
+  if (['data_repair','sua du lieu loi cu','sửa dữ liệu lỗi cũ'].includes(rawType)) return 'data_repair';
 
-function ledgerStock(tab, state) {
-  return tab === 'raw'
-    ? Number(state.opening || 0) + Number(state.imported || 0) - Number(state.exported || 0)
-    : Number(state.opening || 0) + Number(state.production || 0) - Number(state.sales || 0) + Number(state.returned || 0) - Number(state.waste || 0);
+  const a = String(log?.action || '').trim().toLowerCase();
+  if (a === 'nhập' || a === 'nhập kho' || a === 'nhap' || a === 'nhap kho') return 'import';
+  if (a === 'xuất' || a === 'xuất kho' || a === 'xuat' || a === 'xuat kho') return 'export';
+  if (a === 'xuất bán' || a === 'xuat ban') return 'sales';
+  if (a === 'nấu thêm' || a === 'nau them') return 'production';
+  if (a === 'thu hồi' || a === 'thu hồi cuối ngày' || a === 'thu hoi') return 'return';
+  if (a === 'hủy món' || a === 'huy mon') return 'waste';
+  if (a === 'điều chỉnh tăng' || a === 'điều chỉnh giảm' || a === 'dieu chinh tang' || a === 'dieu chinh giam') return 'stocktake';
+  if (a === 'kiểm kê' || a === 'kiem ke') return 'stocktake';
+  if (a === 'sửa dữ liệu lỗi cũ' || a === 'sua du lieu loi cu') return 'data_repair';
+  return null;
 }
 
 function simulateItemLedger(tab, item, overrideLogId = null, overrideQty = null, deletedLogId = null) {
-  const itemLogs = logs
-    .map((l, idx) => ({ l, idx, ts: logTimestamp(l, idx) }))
-    .filter(o => logBelongsToItem(o.l, tab, item) && o.l.id !== deletedLogId)
-    .sort((a,b) => a.ts - b.ts || a.idx - b.idx);
-
-  // Ledger mô phỏng phải dùng ĐÚNG cùng một quy tắc với Ledger hiển thị:
-  // lấy Kiểm kê gần nhất làm mốc gốc, sau đó chạy tuần tự từng giao dịch.
-  // Khi sửa một log, log cũ được thay bằng số mới ngay tại đúng vị trí thời gian;
-  // tuyệt đối không lấy tồn hiện tại rồi trừ/cộng lại số mới.
-  let stock = Number(item?.opening || 0);
-  if (!Number.isFinite(stock) || stock < 0) stock = 0;
-
-  // Tìm mốc kiểm kê cuối cùng. Các giao dịch trước mốc này không còn ảnh hưởng
-  // tới tồn hiện tại, đúng với calculateStockFromLogs().
-  let startIndex = 0;
-  for (let i = itemLogs.length - 1; i >= 0; i--) {
-    const l = itemLogs[i].l;
-    if (normalizeActionType(l) !== 'stocktake') continue;
-    const target = Number(l.after);
-    if (!Number.isFinite(target) || target < 0) continue;
-    stock = target;
-    startIndex = i + 1;
-    break;
-  }
-
-  const state = {
-    opening: stock,
-    imported: 0, exported: 0, production: 0, sales: 0, returned: 0, waste: 0,
-    // Lượng đã Xuất bán nhưng chưa được Thu hồi/Hủy. Đây là quan hệ nghiệp vụ
-    // độc lập với tồn kho vật lý: Kiểm kê reset mốc tồn nhưng không xóa lịch sử
-    // quyền được Thu hồi/Hủy của các giao dịch đã bán.
-    soldOutstanding: 0
-  };
-
-  // Quan hệ Xuất bán ↔ Thu hồi/Hủy phải được dựng từ TOÀN BỘ lịch sử,
-  // không được reset theo mốc Kiểm kê. Ví dụ hàng đã bán trước ngày kiểm kê
-  // vẫn có thể được thu hồi sau ngày kiểm kê.
-  if (tab === 'fg') {
-    for (let i = 0; i < itemLogs.length; i++) {
-      const l = itemLogs[i].l;
-      const type = normalizeActionType(l);
-      const qty = l.id === overrideLogId ? Number(overrideQty) : Number(l.qty);
-      if (!Number.isFinite(qty) || qty < 0) {
-        return { ok:false, message:`Nhật ký "${l.action}" của ${item.name} có số lượng không hợp lệ.` };
-      }
-      if (type === 'sales') state.soldOutstanding = normalizeLedgerNumber(state.soldOutstanding + qty);
-      else if (type === 'return' || type === 'waste') {
-        if (qty > state.soldOutstanding + 1e-9) {
-          return { ok:false, message:`Nhật ký "${l.action}" ${fmt(qty)} ${item.unit} vượt quá phần đã Xuất bán nhưng chưa được Thu hồi/Hủy. Phần còn có thể xử lý chỉ ${fmt(Math.max(0, state.soldOutstanding))} ${item.unit}.` };
-        }
-        state.soldOutstanding = normalizeLedgerNumber(state.soldOutstanding - qty);
-      }
-    }
-  }
-
-  for (let i = startIndex; i < itemLogs.length; i++) {
-    const l = itemLogs[i].l;
-    const type = normalizeActionType(l);
-
-    if (type === 'data_repair') continue;
-
-    const isOverride = l.id === overrideLogId;
-    const qty = isOverride ? Number(overrideQty) : Number(l.qty);
-
-    // Kiểm kê không được sửa qua màn hình này, nhưng vẫn phải được mô phỏng
-    // như một mốc tồn thực tế nếu nó nằm trong lịch sử.
-    if (type === 'stocktake') {
-      const target = Number(l.after);
-      if (!Number.isFinite(target) || target < 0) {
-        return { ok:false, message:`Nhật ký kiểm kê của ${item.name} có Tồn thực tế không hợp lệ.` };
-      }
-      const before = stock;
-      stock = target;
-      results.push({ id:l.id, before, after:stock });
-      continue;
-    }
-
-    if (!type || !Number.isFinite(qty) || qty < 0) {
-      return { ok:false, message:`Nhật ký "${l.action}" của ${item.name} có số lượng không hợp lệ.` };
-    }
-
-    const before = stock;
-    const decreasing = tab === 'raw' ? type === 'export' : ['sales','waste'].includes(type);
-
-    // qty = 0 chỉ được phép đối với chính log đang sửa. Nó vẫn đi qua Ledger
-    // như một giao dịch hợp lệ để kiểm tra toàn bộ chuỗi phía sau.
-    if (decreasing && qty > before + 1e-9) {
-      return {
-        ok:false,
-        message:`Không thể sửa vì "${l.action}" ${fmt(qty)} ${item.unit} làm tồn kho âm. Tồn khả dụng tại thời điểm đó chỉ ${fmt(Math.max(0,before))} ${item.unit}.`
-      };
-    }
-
-    // Tính trực tiếp từ stock hiện tại thay vì dựng lại từ các tổng trên item.
-    // Đây là điểm quan trọng giúp sửa 10 → 8 thành 0 + 10 - 8 = 2.
-    if (tab === 'raw') {
-      if (type === 'import') { stock += qty; state.imported += qty; }
-      else if (type === 'export') { stock -= qty; state.exported += qty; }
-      else return { ok:false, message:`Không xác định được loại giao dịch của nhật ký "${l.action}".` };
-    } else {
-      if (type === 'production') { stock += qty; state.production += qty; }
-      else if (type === 'sales') { stock -= qty; state.sales += qty; }
-      else if (type === 'return') { stock += qty; state.returned += qty; }
-      else if (type === 'waste') { stock -= qty; state.waste += qty; }
-      else return { ok:false, message:`Không xác định được loại giao dịch của nhật ký "${l.action}".` };
-    }
-
-    if (stock < -1e-9) {
-      return {
-        ok:false,
-        message:`Không thể sửa vì "${l.action}" ${fmt(qty)} ${item.unit} làm tồn kho âm. Tồn khả dụng tại thời điểm đó chỉ ${fmt(Math.max(0,before))} ${item.unit}.`
-      };
-    }
-
-    results.push({ id:l.id, before, after:stock });
-  }
-
-  return { ok:true, state, results, stock };
+  return replayLedger(tab, item, logs, {
+    overrideLogId,
+    overrideQty,
+    deletedLogId,
+    validatePhysical: true,
+    validateRelations: true
+  });
 }
 
 function rebuildItemLedger(tab, item) {
   const sim = simulateItemLedger(tab, item);
   if (!sim.ok) return sim;
 
-  item.imported = sim.state.imported;
-  item.exported = sim.state.exported;
-  item.production = sim.state.production;
-  item.sales = sim.state.sales;
-  item.returned = sim.state.returned;
-  item.waste = sim.state.waste;
+  item.imported = sim.cumulative.imported;
+  item.exported = sim.cumulative.exported;
+  item.production = sim.cumulative.production;
+  item.sales = sim.cumulative.sales;
+  item.returned = sim.cumulative.returned;
+  item.waste = sim.cumulative.waste;
 
   const byId = new Map(sim.results.map(r => [r.id, r]));
   logs.forEach(l => {
@@ -2098,13 +2037,13 @@ async function saveLogEdit() {
   // fg_items: production, sales, returned, waste
   // Không gửi exported/imported vào fg_items (hoặc production/... vào raw_items).
   if (l.tab === 'raw') {
-    updatedItem.imported = sim.state.imported;
-    updatedItem.exported = sim.state.exported;
+    updatedItem.imported = sim.cumulative.imported;
+    updatedItem.exported = sim.cumulative.exported;
   } else {
-    updatedItem.production = sim.state.production;
-    updatedItem.sales = sim.state.sales;
-    updatedItem.returned = sim.state.returned;
-    updatedItem.waste = sim.state.waste;
+    updatedItem.production = sim.cumulative.production;
+    updatedItem.sales = sim.cumulative.sales;
+    updatedItem.returned = sim.cumulative.returned;
+    updatedItem.waste = sim.cumulative.waste;
   }
 
   const confirmed = await showInventoryConfirm(
@@ -2217,13 +2156,13 @@ async function deleteLog(id) {
 
   // Dựng item aggregate theo Ledger mới. Kiểm kê không cộng vào các cột giao dịch.
   if (l.tab === 'raw') {
-    x.imported = sim.state.imported;
-    x.exported = sim.state.exported;
+    x.imported = sim.cumulative.imported;
+    x.exported = sim.cumulative.exported;
   } else {
-    x.production = sim.state.production;
-    x.sales = sim.state.sales;
-    x.returned = sim.state.returned;
-    x.waste = sim.state.waste;
+    x.production = sim.cumulative.production;
+    x.sales = sim.cumulative.sales;
+    x.returned = sim.cumulative.returned;
+    x.waste = sim.cumulative.waste;
   }
 
   try {
@@ -2415,15 +2354,29 @@ async function applyInventoryStocktake() {
   });
 
   let changes = [];
+  const invalidLedgerItems = [];
   all.forEach(([tab,x]) => {
     const key = tab+'|'+x.id;
     if (saved[key] == null) return;
-    const system = normalizeQty1(stockAtDate(tab, x, date));
+    const rawSystem = stockAtDate(tab, x, date);
+    if (!Number.isFinite(rawSystem)) {
+      invalidLedgerItems.push(`${x.name} (${tab==='raw'?'Kho Thô':'Thành phẩm'})`);
+      return;
+    }
+    const system = normalizeQty1(rawSystem);
     const actual = normalizeQty1(saved[key]);
     if (!Number.isFinite(actual) || actual < 0) return;
     if (Math.abs(actual - system) <= 1e-9) return;
     changes.push({tab, x, system, actual});
   });
+  if (invalidLedgerItems.length) {
+    inventorySaving = false;
+    return showInventoryNotice('❌ LEDGER CHƯA HỢP LỆ', `Không thể kiểm kê vì hệ thống không xác định được tồn từ Nhật Ký của:
+
+${invalidLedgerItems.slice(0,12).map(x=>'• '+x).join('\n')}${invalidLedgerItems.length>12?'\n• ... và '+(invalidLedgerItems.length-12)+' mặt hàng khác':''}
+
+Hệ thống không tự đổi các giá trị lỗi thành 0.`);
+  }
 
   if (!changes.length) {
     inventorySaving = false;
@@ -2474,7 +2427,11 @@ async function applyInventoryStocktake() {
     for (const c of changes) {
       const fresh = freshMap.get(c.tab+'|'+c.x.id);
       if (!fresh) throw new Error(`Mặt hàng “${c.x.name}” không còn tồn tại trên Cloud.`);
-      const freshSystem = normalizeQty1(calculateStockFromLogs(c.tab, fresh.x, freshLogs, date === localDateKey() ? Date.now() : getDayBoundaryMs(date, true)));
+      const freshRawSystem = calculateStockFromLogs(c.tab, fresh.x, freshLogs, date === localDateKey() ? Date.now() : getDayBoundaryMs(date, true));
+      if (!Number.isFinite(freshRawSystem)) {
+        throw new Error(`Không thể xác định Ledger Cloud mới nhất của “${fresh.x.name}”. Lần kiểm kê chưa được ghi.`);
+      }
+      const freshSystem = normalizeQty1(freshRawSystem);
       const enteredActual = normalizeQty1(saved[c.tab+'|'+c.x.id]);
       if (Math.abs(freshSystem - c.system) > 1e-9) staleDetected = true;
       if (Math.abs(enteredActual - freshSystem) <= 1e-9) continue;
@@ -2500,9 +2457,12 @@ async function applyInventoryStocktake() {
     const payload = [];
     const batchId = `inv_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
     const todayKey = localDateKey();
+    // Tất cả timestamp của một batch phải nằm trong quá khứ hoặc đúng thời điểm
+    // hiện tại. Không được dùng Date.now()+i vì các dòng sau có thể nằm "tương lai"
+    // vài mili-giây và bị calculateStockFromLogs bỏ qua ngay sau khi kiểm kê.
     const nowBase = date === todayKey
-      ? Date.now()
-      : getDayBoundaryMs(date, true) - Math.min(changes.length, 500);
+      ? Date.now() - Math.max(0, changes.length - 1)
+      : getDayBoundaryMs(date, true) - Math.min(Math.max(0, changes.length - 1), 500);
 
     for (let i = 0; i < changes.length; i++) {
       const c = changes[i];
@@ -2550,6 +2510,19 @@ async function applyInventoryStocktake() {
     const missing = ids.filter(id => !verified.has(id));
     if (missing.length !== 0 || verified.size !== ids.length) {
       throw new Error(`Kiểm kê chưa được xác minh đầy đủ trên Cloud: cần ${ids.length} dòng, xác nhận được ${verified.size} dòng.`);
+    }
+
+    // Xác minh lần cuối: sau khi insert, chính Ledger Cloud phải trả đúng
+    // Tồn thực tế vừa kiểm kê cho TỪNG mặt hàng. Nếu không khớp, rollback batch.
+    const postLogs = [...freshLogs, ...payload.map(l => normalizeInventoryLogNumbers({
+      ...l, itemId:l.itemid, actionType:l.actiontype, userId:l.userid, username:currentUser.username||'', dateKey:l.datekey
+    }))];
+    for (const c of changes) {
+      const replay = replayLedger(c.tab, c.x, postLogs, { validatePhysical:false, validateRelations:false });
+      if (!replay.ok || Math.abs(normalizeLedgerNumber(replay.stock) - normalizeLedgerNumber(c.actual)) > 1e-9) {
+        await supabaseClient.from('logs').delete().in('id', ids);
+        throw new Error(`Kiểm kê của “${c.x.name}” chưa tạo đúng mốc tồn mới. Dự kiến ${fmt(c.actual)} ${c.x.unit}, Ledger sau khi ghi trả về ${replay.ok ? fmt(replay.stock) : 'không hợp lệ'} ${c.x.unit}. Batch kiểm kê đã được rollback.`);
+      }
     }
 
     delete inventoryCounts[date];
@@ -2794,7 +2767,19 @@ function deleteTableDraft(tab,id,type){
   closeModal();
   render();
 }
-function tableStockEnd(tab,item){ const d=tableDrafts[tableDraftKey(tab,item.id)]||{}; const range=dateRangeForView(); const report=isDateFilterActive(); const base=report?stockAtDate(tab,item,range.end):stockAtDate(tab,item,localDateKey()); if(report)return Math.max(0,base); return tab==='raw'?Math.max(0,base+Number(d.import||0)-Number(d.export||0)):Math.max(0,base+Number(d.production||0)-Number(d.sales||0)+Number(d.return||0)-Number(d.waste||0)); }
+function tableStockEnd(tab,item){
+  const d=tableDrafts[tableDraftKey(tab,item.id)]||{};
+  const range=dateRangeForView();
+  const report=isDateFilterActive();
+  const base=report?stockAtDate(tab,item,range.end):stockAtDate(tab,item,localDateKey());
+  if(!Number.isFinite(base)) return NaN;
+  if(report) return normalizeLedgerNumber(base);
+  const pending=tab==='raw'
+    ? Number(d.import||0)-Number(d.export||0)
+    : Number(d.production||0)-Number(d.sales||0)+Number(d.return||0)-Number(d.waste||0);
+  return normalizeLedgerNumber(base+pending);
+}
+
 function tableCurrentStats(tab,item){ return tab==='raw'?getRawStatsByDate(item):getFGStatsByDate(item); }
 function tableHeaderGroup(text){ const el=document.getElementById('tableActiveGroup'); if(el) el.textContent=text||'Tất cả'; }
 function initTableStickyGroup(){
@@ -2879,13 +2864,216 @@ function initTableStickyGroup(){
   fit();
   requestAnimationFrame(()=>{buildFloatingHeader();update();});
 }
-function updateTableRowUI(tab,id){ const key=tableDraftKey(tab,id),d=tableDrafts[key]||{},btn=document.querySelector(`[data-save-key="${CSS.escape(key)}"]`),end=document.querySelector(`[data-stock-end-key="${CSS.escape(key)}"]`),has=Object.values(d).some(v=>Number(v)>0); if(btn){btn.classList.toggle('ready',has&&!tableSavingKey);btn.disabled=!has||!!tableSavingKey;btn.textContent=tableSavingKey===key?'⏳':'Lưu';} if(end){const item=(tab==='raw'?raw:fg).find(x=>sameLedgerItemId(x.id,id));if(item)end.textContent=fmt(tableStockEnd(tab,item));} }
-async function saveTableRow(tab,id){ const key=tableDraftKey(tab,id); if(tableSavingKey)return; if(isDateFilterActive())return showInventoryNotice('📅 Đang xem báo cáo','Hãy bấm “Về hiện tại” trước khi nhập liệu.'); const arr=tab==='raw'?raw:fg,item=arr.find(x=>sameLedgerItemId(x.id,id)); if(!item)return showInventoryNotice('❌ Không tìm thấy mặt hàng','Mặt hàng không còn tồn tại trên màn hình.'); const d={...(tableDrafts[key]||{})}; const ops=(tab==='raw'?[{type:'import',qty:Number(d.import||0),actionName:'＋ Nhập kho'},{type:'export',qty:Number(d.export||0),actionName:'− Xuất kho'}]:[{type:'production',qty:Number(d.production||0),actionName:'＋ Nấu thêm'},{type:'sales',qty:Number(d.sales||0),actionName:'− Xuất bán'},{type:'return',qty:Number(d.return||0),actionName:'↩ Thu hồi'},{type:'waste',qty:Number(d.waste||0),actionName:'− Hủy món'}]).filter(o=>o.qty>0); if(!ops.length)return; tableSavingKey=key;updateTableRowUI(tab,id); try{ const itemTable=tab==='raw'?'raw_items':'fg_items'; const {data:freshItem,error:freshError}=await supabaseClient.from(itemTable).select('*').eq('id',item.id).maybeSingle(); if(freshError||!freshItem)throw new Error(freshError?.message||'Không tìm thấy dữ liệu mặt hàng trên Cloud.'); const {data:cloudLogs,error:logsError}=await supabaseClient.from('logs').select('*').eq('tab',tab); if(logsError)throw new Error(`Không thể đọc Nhật Ký Cloud: ${logsError.message||logsError}`); const freshLogs=(cloudLogs||[]).map(l=>({id:l.id,tab:l.tab,itemId:l.itemid,item:l.item,action:l.action,qty:Number(l.qty||0),unit:l.unit,before:Number(l.before||0),after:Number(l.after||0),actionType:l.actiontype,user:l.user,username:l.userid||'',timestamp:Number(l.timestamp||0),dateKey:l.datekey||'',editedAt:l.editedat||null,editedBy:l.editedby||null,time:l.time||''})); let stock=normalizeLedgerNumber(calculateStockFromLogs(tab,freshItem,freshLogs)); const updated=JSON.parse(JSON.stringify(freshItem)),prepared=[]; let soldOutstanding=0; if(tab==='fg'){ const ordered=freshLogs.filter(l=>logBelongsToItem(l,'fg',freshItem)).map((l,idx)=>({l,idx})).sort((a,b)=>logTimestamp(a.l,a.idx)-logTimestamp(b.l,b.idx)||a.idx-b.idx); for(const {l} of ordered){const t=normalizeActionType(l),q=Number(l.qty||0); if(t==='sales')soldOutstanding=normalizeLedgerNumber(soldOutstanding+q); else if(t==='return'||t==='waste')soldOutstanding=normalizeLedgerNumber(soldOutstanding-q);} } for(const op of ops){ if(!validatePositiveQty(op.qty))throw new Error(`${op.actionName}: số lượng phải lớn hơn 0.`); if(tab==='fg'&&(op.type==='return'||op.type==='waste')){if(op.qty>soldOutstanding+1e-9)throw new Error(`${op.actionName} ${fmt(op.qty)} ${freshItem.unit} vượt quá phần đã Xuất bán nhưng chưa được Thu hồi/Hủy. Phần còn có thể xử lý chỉ ${fmt(Math.max(0,soldOutstanding))} ${freshItem.unit}.`); soldOutstanding=normalizeLedgerNumber(soldOutstanding-op.qty);} else if(tab==='fg'&&op.type==='sales'){soldOutstanding=normalizeLedgerNumber(soldOutstanding+op.qty);} if(isStockDecreasingAction(tab,op.type)&&op.qty>stock+1e-9)throw new Error(`Không đủ tồn kho để ${op.actionName.toLowerCase()}. Tồn hiện có: ${fmt(stock)} ${freshItem.unit}.`); const before=normalizeLedgerNumber(stock); if(tab==='raw'){if(op.type==='import')stock+=op.qty;else stock-=op.qty;}else{if(op.type==='production'||op.type==='return')stock+=op.qty;else stock-=op.qty;} stock=normalizeLedgerNumber(stock); applyDraftToItem(updated,tab,op.type,op.qty); if(isStockDecreasingAction(tab,op.type)&&stock < 0)throw new Error(`${op.actionName} làm tồn kho âm.`); prepared.push({...op,before,after:stock}); }
- const now=Date.now(),userName=`${currentUser.name} (${roleLabel(currentUser.role)})`; const payload=prepared.map((p,i)=>({id:'log_'+now+'_'+Math.random().toString(36).slice(2,9)+'_'+i,tab,itemid:freshItem.id,item:freshItem.name,action:p.actionName,qty:p.qty,unit:freshItem.unit,before:p.before,after:p.after,actiontype:p.type,unitcost:tab==='raw'&&p.type==='import'?rawUnitCost(freshItem):0,conversionunit:tab==='raw'&&p.type==='export'?rawConversionUnit(freshItem):'',conversionqty:tab==='raw'&&p.type==='export'?rawConversionQty(freshItem):0,dosage:tab==='raw'&&p.type==='export'?rawUsagePerProduct(freshItem):0,wasteqty:tab==='raw'&&p.type==='export'?rawWasteQty(freshItem):0,yieldqty:tab==='raw'&&p.type==='export'?rawYieldPerSourceUnit(freshItem)*p.qty:0,timestamp:now+i,datekey:localDateKey(),userid:currentUser.id||currentUser.username||'',user:userName,time:dateTime(),editedat:null,editedby:null})); const {error:insertError}=await supabaseClient.from('logs').insert(payload); if(insertError)throw new Error(`Không thể ghi Nhật Ký Cloud: ${insertError.message||insertError}`); const {error:itemError}=await supabaseClient.from(itemTable).update(updated).eq('id',freshItem.id); if(itemError)console.warn('Không cập nhật được cột tổng; Ledger vẫn dùng Log Cloud:',itemError.message||itemError); const localItem=arr.find(x=>sameLedgerItemId(x.id,id));if(localItem)Object.assign(localItem,updated); const localLogs=payload.map(l=>({...l,itemId:l.itemid,actionType:l.actiontype,userId:l.userid,username:currentUser.username||'',dateKey:l.datekey,editedAt:null,editedBy:null,editDetail:'',time:l.time,unitCost:Number(l.unitcost||0)})); logs=[...localLogs,...logs];sortLogsNewestFirst();saveLocalState();clearTableDraft(tab,id);render();showSuccessToast(`${prepared.length} giao dịch đã được ghi nhận`); }catch(err){ console.error('Lỗi lưu bảng:',err);showInventoryNotice('❌ CHƯA LƯU ĐƯỢC',`${err.message||err}\n\nDữ liệu trên dòng chưa được ghi nhận.`); }finally{tableSavingKey='';} }
+function updateTableRowUI(tab,id){ const key=tableDraftKey(tab,id),d=tableDrafts[key]||{},btn=document.querySelector(`[data-save-key="${CSS.escape(key)}"]`),end=document.querySelector(`[data-stock-end-key="${CSS.escape(key)}"]`),has=Object.values(d).some(v=>Number(v)>0); if(btn){btn.classList.toggle('ready',has&&!tableSavingKey);btn.disabled=!has||!!tableSavingKey;btn.textContent=tableSavingKey===key?'⏳':'Lưu';} if(end){const item=(tab==='raw'?raw:fg).find(x=>sameLedgerItemId(x.id,id));if(item){const v=tableStockEnd(tab,item);end.textContent=fmt(v);end.style.color=Number.isFinite(v)&&v<0?'#dc2626':'#0284c7';}} }
+function prepareLedgerTransactions(tab, freshItem, freshLogs, ops) {
+  const base = replayLedger(tab, freshItem, freshLogs, {
+    validatePhysical:false,
+    validateRelations:false
+  });
+  if (!base.ok) return base;
+
+  let stock = normalizeLedgerNumber(base.stock);
+  let soldOutstanding = tab === 'fg' ? normalizeLedgerNumber(base.state.soldOutstanding) : 0;
+  const prepared = [];
+
+  for (const op of ops) {
+    const qty = normalizeQty1(op.qty);
+    if (!validatePositiveQty(qty)) {
+      return { ok:false, code:'invalid_qty', message:`${op.actionName}: số lượng phải lớn hơn 0 và chỉ tối đa 1 chữ số thập phân.` };
+    }
+
+    if (tab === 'fg' && (op.type === 'return' || op.type === 'waste')) {
+      if (qty > soldOutstanding + 1e-9) {
+        return {
+          ok:false,
+          code:'invalid_relation',
+          message:`${op.actionName} ${fmt(qty)} ${freshItem.unit} vượt quá phần đã Xuất bán nhưng chưa được Thu hồi/Hủy. Phần còn có thể xử lý chỉ ${fmt(Math.max(0,soldOutstanding))} ${freshItem.unit}.`
+        };
+      }
+      soldOutstanding = normalizeLedgerNumber(soldOutstanding - qty);
+    }
+
+    if (tab === 'fg' && op.type === 'sales') {
+      // Xuất bán phải kiểm tra tồn vật lý TRƯỚC khi tăng nghĩa vụ Thu hồi/Hủy.
+      if (qty > stock + 1e-9) {
+        return { ok:false, code:'negative_stock', message:`Không đủ tồn kho để xuất bán. Tồn hiện có: ${fmt(stock)} ${freshItem.unit}.` };
+      }
+      soldOutstanding = normalizeLedgerNumber(soldOutstanding + qty);
+    }
+
+    if (tab === 'raw' && op.type === 'export' && qty > stock + 1e-9) {
+      return { ok:false, code:'negative_stock', message:`Không đủ tồn kho để xuất kho. Tồn hiện có: ${fmt(stock)} ${freshItem.unit}.` };
+    }
+    if (tab === 'fg' && op.type === 'waste' && qty > stock + 1e-9) {
+      return { ok:false, code:'negative_stock', message:`Không đủ tồn kho để hủy món. Tồn hiện có: ${fmt(stock)} ${freshItem.unit}.` };
+    }
+
+    const before = normalizeLedgerNumber(stock);
+    if (tab === 'raw') {
+      if (op.type === 'import') stock += qty;
+      else if (op.type === 'export') stock -= qty;
+      else return { ok:false, code:'invalid_action', message:'Kho Thô chỉ cho phép Nhập kho hoặc Xuất kho.' };
+    } else {
+      if (op.type === 'production' || op.type === 'return') stock += qty;
+      else if (op.type === 'sales' || op.type === 'waste') stock -= qty;
+      else return { ok:false, code:'invalid_action', message:'Kho Thành Phẩm chỉ cho phép Nấu thêm, Xuất bán, Thu hồi hoặc Hủy món.' };
+    }
+    stock = normalizeLedgerNumber(stock);
+    if (isStockDecreasingAction(tab, op.type) && stock < -1e-9) {
+      return { ok:false, code:'negative_stock', message:`${op.actionName} làm tồn kho âm ${fmt(stock)} ${freshItem.unit}.` };
+    }
+    prepared.push({ ...op, qty, before, after:stock });
+  }
+
+  const updatedItem = JSON.parse(JSON.stringify(freshItem));
+  if (tab === 'raw') {
+    updatedItem.imported = normalizeLedgerNumber(base.cumulative.imported + prepared.filter(x=>x.type==='import').reduce((a,x)=>a+x.qty,0));
+    updatedItem.exported = normalizeLedgerNumber(base.cumulative.exported + prepared.filter(x=>x.type==='export').reduce((a,x)=>a+x.qty,0));
+  } else {
+    updatedItem.production = normalizeLedgerNumber(base.cumulative.production + prepared.filter(x=>x.type==='production').reduce((a,x)=>a+x.qty,0));
+    updatedItem.sales = normalizeLedgerNumber(base.cumulative.sales + prepared.filter(x=>x.type==='sales').reduce((a,x)=>a+x.qty,0));
+    updatedItem.returned = normalizeLedgerNumber(base.cumulative.returned + prepared.filter(x=>x.type==='return').reduce((a,x)=>a+x.qty,0));
+    updatedItem.waste = normalizeLedgerNumber(base.cumulative.waste + prepared.filter(x=>x.type==='waste').reduce((a,x)=>a+x.qty,0));
+  }
+
+  return { ok:true, base, prepared, updatedItem, stock:normalizeLedgerNumber(stock), soldOutstanding };
+}
+
+async function verifyCloudLedgerItem(tab, itemId, expectedStock = null) {
+  const table = tab === 'raw' ? 'raw_items' : 'fg_items';
+  const [{data:item,error:itemError},{data:rows,error:logError}] = await Promise.all([
+    supabaseClient.from(table).select('*').eq('id', itemId).maybeSingle(),
+    supabaseClient.from('logs').select('*').eq('itemid', itemId)
+  ]);
+  if (itemError) throw new Error(`Không thể xác minh mặt hàng trên Cloud: ${itemError.message || itemError}`);
+  if (logError) throw new Error(`Không thể xác minh Nhật Ký trên Cloud: ${logError.message || logError}`);
+  if (!item) throw new Error('Mặt hàng không còn tồn tại trên Cloud.');
+  const normalizedItem = normalizeInventoryItemNumbers(item, tab);
+  const normalizedLogs = (rows || []).map(l => normalizeInventoryLogNumbers({
+    id:l.id, tab:l.tab, itemId:l.itemid, item:l.item, action:l.action,
+    qty:Number(l.qty||0), unit:l.unit, before:Number(l.before||0), after:Number(l.after||0),
+    actionType:l.actiontype, user:l.user, username:l.userid||'', timestamp:Number(l.timestamp||0),
+    dateKey:l.datekey||'', editedAt:l.editedat||null, editedBy:l.editedby||null, time:l.time||''
+  }));
+  const replay = replayLedger(tab, normalizedItem, normalizedLogs, { validatePhysical:false, validateRelations:false });
+  if (!replay.ok) throw new Error(`Ledger Cloud sau khi ghi không hợp lệ: ${replay.message || replay.code}`);
+  if (expectedStock != null && Math.abs(normalizeLedgerNumber(replay.stock) - normalizeLedgerNumber(expectedStock)) > 1e-9) {
+    throw new Error(`Ledger Cloud sau khi ghi không khớp. Dự kiến ${fmt(expectedStock)} ${normalizedItem.unit}, thực tế ${fmt(replay.stock)} ${normalizedItem.unit}.`);
+  }
+  return { item:normalizedItem, logs:normalizedLogs, replay };
+}
+
+async function saveTableRow(tab,id){
+  const key=tableDraftKey(tab,id);
+  if(tableSavingKey)return;
+  if(isDateFilterActive())return showInventoryNotice('📅 Đang xem báo cáo','Hãy bấm “Về hiện tại” trước khi nhập liệu.');
+  const arr=tab==='raw'?raw:fg;
+  const item=arr.find(x=>sameLedgerItemId(x.id,id));
+  if(!item)return showInventoryNotice('❌ Không tìm thấy mặt hàng','Mặt hàng không còn tồn tại trên màn hình.');
+  const d={...(tableDrafts[key]||{})};
+  const ops=(tab==='raw'
+    ? [{type:'import',qty:Number(d.import||0),actionName:'＋ Nhập kho'},{type:'export',qty:Number(d.export||0),actionName:'− Xuất kho'}]
+    : [{type:'production',qty:Number(d.production||0),actionName:'＋ Nấu thêm'},{type:'sales',qty:Number(d.sales||0),actionName:'− Xuất bán'},{type:'return',qty:Number(d.return||0),actionName:'↩ Thu hồi'},{type:'waste',qty:Number(d.waste||0),actionName:'− Hủy món'}]
+  ).filter(o=>o.qty>0);
+  if(!ops.length)return;
+  tableSavingKey=key;updateTableRowUI(tab,id);
+  try{
+    const itemTable=tab==='raw'?'raw_items':'fg_items';
+    const [{data:freshItem,error:freshError},{data:cloudRows,error:logsError}]=await Promise.all([
+      supabaseClient.from(itemTable).select('*').eq('id',item.id).maybeSingle(),
+      supabaseClient.from('logs').select('*').eq('itemid',item.id)
+    ]);
+    if(freshError||!freshItem)throw new Error(freshError?.message||'Không tìm thấy dữ liệu mặt hàng trên Cloud.');
+    if(logsError)throw new Error(`Không thể đọc Nhật Ký Cloud: ${logsError.message||logsError}`);
+    const freshLogs=(cloudRows||[]).map(l=>normalizeInventoryLogNumbers({
+      id:l.id,tab:l.tab,itemId:l.itemid,item:l.item,action:l.action,qty:Number(l.qty||0),unit:l.unit,
+      before:Number(l.before||0),after:Number(l.after||0),actionType:l.actiontype,user:l.user,
+      username:l.userid||'',timestamp:Number(l.timestamp||0),dateKey:l.datekey||'',editedAt:l.editedat||null,
+      editedBy:l.editedby||null,time:l.time||''
+    }));
+    const preparedResult=prepareLedgerTransactions(tab,normalizeInventoryItemNumbers(freshItem,tab),freshLogs,ops);
+    if(!preparedResult.ok)throw new Error(preparedResult.message||'Không thể chuẩn bị giao dịch theo Ledger.');
+
+    const now=Date.now();
+    const userName=`${currentUser.name} (${roleLabel(currentUser.role)})`;
+    const payload=preparedResult.prepared.map((p,i)=>({
+      id:'log_'+now+'_'+Math.random().toString(36).slice(2,9)+'_'+i,
+      tab,itemid:freshItem.id,item:freshItem.name,action:p.actionName,qty:p.qty,unit:freshItem.unit,
+      before:p.before,after:p.after,actiontype:p.type,
+      unitcost:tab==='raw'&&p.type==='import'?rawUnitCost(freshItem):0,
+      conversionunit:tab==='raw'&&p.type==='export'?rawConversionUnit(freshItem):'',
+      conversionqty:tab==='raw'&&p.type==='export'?rawConversionQty(freshItem):0,
+      dosage:tab==='raw'&&p.type==='export'?rawUsagePerProduct(freshItem):0,
+      wasteqty:tab==='raw'&&p.type==='export'?rawWasteQty(freshItem):0,
+      yieldqty:tab==='raw'&&p.type==='export'?rawYieldPerSourceUnit(freshItem)*p.qty:0,
+      timestamp:now+i,datekey:localDateKey(),userid:currentUser.id||currentUser.username||'',user:userName,
+      time:dateTime(),editedat:null,editedby:null
+    }));
+
+    const {error:insertError}=await supabaseClient.from('logs').insert(payload);
+    if(insertError)throw new Error(`Không thể ghi Nhật Ký Cloud: ${insertError.message||insertError}`);
+
+    try{
+      const verified=await verifyCloudLedgerItem(tab,freshItem.id,preparedResult.stock);
+      const {error:itemError}=await supabaseClient.from(itemTable).update(preparedResult.updatedItem).eq('id',freshItem.id);
+      if(itemError)console.warn('Không cập nhật được cột tổng hàng hóa; Ledger vẫn dùng Log Cloud:',itemError.message||itemError);
+
+      const localItem=arr.find(x=>sameLedgerItemId(x.id,id));
+      if(localItem)Object.assign(localItem,preparedResult.updatedItem);
+      const localLogs=payload.map(l=>normalizeInventoryLogNumbers({...l,itemId:l.itemid,actionType:l.actiontype,userId:l.userid,username:currentUser.username||'',dateKey:l.datekey,editedAt:null,editedBy:null,editDetail:'',time:l.time,unitCost:Number(l.unitcost||0)}));
+      logs=[...localLogs,...logs];
+      sortLogsNewestFirst();
+      saveLocalState();
+      clearTableDraft(tab,id);render();
+      showSuccessToast(`${preparedResult.prepared.length} giao dịch đã được ghi nhận · Ledger Cloud đã xác minh`);
+    }catch(verifyError){
+      await syncCoreDataFromCloudSilently().catch(()=>{});
+      render();
+      throw verifyError;
+    }
+  }catch(err){
+    console.error('Lỗi lưu bảng:',err);
+    showInventoryNotice('❌ CHƯA LƯU ĐƯỢC',`${err.message||err}\n\nDữ liệu trên dòng chưa được ghi nhận hoặc đã được đồng bộ lại từ Cloud.`);
+  }finally{tableSavingKey='';}
+}
 function tableHeader(tab){ return tab==='raw'?`<thead><tr><th><div id="tableActiveGroup">Tất cả</div></th><th>Tồn đầu</th><th>Nhập kho</th><th>Xuất kho</th><th>Tồn kho</th><th>Xác nhận</th></tr></thead>`:`<thead><tr><th><div id="tableActiveGroup">Tất cả</div></th><th>Tồn đầu</th><th>Nấu thêm</th><th>Xuất bán</th><th>Thu hồi</th><th>Hủy</th><th>Tồn cuối</th><th>Xác nhận</th></tr></thead>`; }
-function tableRowRaw(item,report){ const key=tableDraftKey('raw',item.id),s=tableCurrentStats('raw',item); return `<tr class="data-row"><td><div class="item-cell-name">${tableEsc(item.name)}</div><div class="item-cell-unit">ĐVT: ${tableEsc(item.unit)}</div></td><td><div class="stock-static">${fmt(s.opening)}</div></td><td>${tableCellInput('raw',item,'import',report)}</td><td>${tableCellInput('raw',item,'export',report)}</td><td><div data-stock-end-key="${tableEsc(key)}" style="font-size:17px;font-weight:900;color:#0284c7">${fmt(tableStockEnd('raw',item))}</div></td><td><button type="button" data-save-key="${tableEsc(key)}" class="entry-save ${tableDraftHasData('raw',item.id)&&!report?'ready':''}" ${report||!tableDraftHasData('raw',item.id)?'disabled':''} onclick="saveTableRow('raw','${tableEsc(item.id)}')">Lưu</button></td></tr>`; }
-function tableRowFG(item,report){ const key=tableDraftKey('fg',item.id),s=tableCurrentStats('fg',item); return `<tr class="data-row"><td><div class="item-cell-name">${tableEsc(item.name)}</div><div class="item-cell-unit">ĐVT: ${tableEsc(item.unit)}</div></td><td><div class="stock-static">${fmt(s.opening)}</div></td><td>${tableCellInput('fg',item,'production',report)}</td><td>${tableCellInput('fg',item,'sales',report)}</td><td>${tableCellInput('fg',item,'return',report)}</td><td>${tableCellInput('fg',item,'waste',report)}</td><td><div data-stock-end-key="${tableEsc(key)}" style="font-size:17px;font-weight:900;color:#0284c7">${fmt(tableStockEnd('fg',item))}</div></td><td><button type="button" data-save-key="${tableEsc(key)}" class="entry-save ${tableDraftHasData('fg',item.id)&&!report?'ready':''}" ${report||!tableDraftHasData('fg',item.id)?'disabled':''} onclick="saveTableRow('fg','${tableEsc(item.id)}')">Lưu</button></td></tr>`; }
+function tableRowRaw(item,report){ const key=tableDraftKey('raw',item.id),s=tableCurrentStats('raw',item); return `<tr class="data-row"><td><div class="item-cell-name">${tableEsc(item.name)}</div><div class="item-cell-unit">ĐVT: ${tableEsc(item.unit)}</div></td><td><div class="stock-static">${fmt(s.opening)}</div></td><td>${tableCellInput('raw',item,'import',report)}</td><td>${tableCellInput('raw',item,'export',report)}</td><td><div data-stock-end-key="${tableEsc(key)}" style="font-size:17px;font-weight:900;color:${(tableStockEnd('raw',item)<0)?'#dc2626':'#0284c7'}">${fmt(tableStockEnd('raw',item))}</div></td><td><button type="button" data-save-key="${tableEsc(key)}" class="entry-save ${tableDraftHasData('raw',item.id)&&!report?'ready':''}" ${report||!tableDraftHasData('raw',item.id)?'disabled':''} onclick="saveTableRow('raw','${tableEsc(item.id)}')">Lưu</button></td></tr>`; }
+function tableRowFG(item,report){ const key=tableDraftKey('fg',item.id),s=tableCurrentStats('fg',item); return `<tr class="data-row"><td><div class="item-cell-name">${tableEsc(item.name)}</div><div class="item-cell-unit">ĐVT: ${tableEsc(item.unit)}</div></td><td><div class="stock-static">${fmt(s.opening)}</div></td><td>${tableCellInput('fg',item,'production',report)}</td><td>${tableCellInput('fg',item,'sales',report)}</td><td>${tableCellInput('fg',item,'return',report)}</td><td>${tableCellInput('fg',item,'waste',report)}</td><td><div data-stock-end-key="${tableEsc(key)}" style="font-size:17px;font-weight:900;color:${(tableStockEnd('fg',item)<0)?'#dc2626':'#0284c7'}">${fmt(tableStockEnd('fg',item))}</div></td><td><button type="button" data-save-key="${tableEsc(key)}" class="entry-save ${tableDraftHasData('fg',item.id)&&!report?'ready':''}" ${report||!tableDraftHasData('fg',item.id)?'disabled':''} onclick="saveTableRow('fg','${tableEsc(item.id)}')">Lưu</button></td></tr>`; }
 function tableView(tab){ const report=isDateFilterActive(),arr=tab==='raw'?raw:fg,groupGetter=tab==='raw'?(x=>x.group):(x=>x.category),selected=tab==='raw'?rawGroup:fgGroup,filtered=sortItemsForDisplay(arr.filter(x=>(selected==='Tất cả'||groupGetter(x)===selected)&&String(x.name||'').toLowerCase().includes(String(query||'').toLowerCase()))),rows=[],groups=tab==='raw'?['Tất cả','HỒNG PHÁT','TNT','BAO BÌ','Khác']:['Tất cả','Đồ uống','Topping','Khác']; let last=null; for(const item of filtered){const g=groupGetter(item)||'Khác';if(g!==last){rows.push(`<tr class="group-row" data-group="${tableEsc(g)}"><td><div class="group-label"><span class="group-dot"></span>${tableEsc(g)}</div></td>${tab==='raw'?'<td colspan="5"></td>':'<td colspan="7"></td>'}</tr>`);last=g;}rows.push(tab==='raw'?tableRowRaw(item,report):tableRowFG(item,report));} const note=report?'📅 Đang xem lại dữ liệu — các ô Nhập/Xuất/Nấu thêm/Bán/Thu hồi/Hủy hiển thị tổng biến động thực tế của kỳ đã chọn, chỉ xem. Bấm “Về hiện tại” để nhập liệu.':'📌 Ngày hiện tại: các ô biến động hiển thị số đã ghi thực tế trong hôm nay. Bấm vào ô để nhập thêm; số mới sẽ cộng vào tổng hôm nay. Tồn đầu và Tồn cuối do hệ thống tự tính.'; return `${dateFilterView()}<div class="filter-wrapper"><div class="filter-scroll">${groups.map(g=>`<button class="filter-chip ${selected===g?'active':''}" onclick="${tab==='raw'?'rawGroup':'fgGroup'}='${tableEsc(g)}';render()">${tableEsc(g)}</button>`).join('')}</div></div><div class="entry-help">${note}</div><div class="table-entry-wrap"><div class="table-scroll"><table class="entry-table">${tableHeader(tab)}<tbody>${rows.join('')||`<tr><td colspan="${tab==='raw'?6:8}" class="table-empty">Chưa có dữ liệu.</td></tr>`}</tbody></table></div></div>` + (requestAnimationFrame(initTableStickyGroup), ""); }
+
+// QA Ledger: có thể gọi từ DevTools: await window.sbCheckLedgerIntegrity()
+// Không thay đổi dữ liệu. Chỉ đọc Cloud và báo các mặt hàng có vấn đề sau mốc kiểm kê.
+async function sbCheckLedgerIntegrity() {
+  const [rawRes, fgRes, logRes] = await Promise.all([
+    supabaseClient.from('raw_items').select('*'),
+    supabaseClient.from('fg_items').select('*'),
+    supabaseClient.from('logs').select('*')
+  ]);
+  if(rawRes.error) throw rawRes.error;
+  if(fgRes.error) throw fgRes.error;
+  if(logRes.error) throw logRes.error;
+  const rawItems=(rawRes.data||[]).map(x=>normalizeInventoryItemNumbers(x,'raw'));
+  const fgItems=(fgRes.data||[]).map(x=>normalizeInventoryItemNumbers(x,'fg'));
+  const cloudLogs=(logRes.data||[]).map(l=>normalizeInventoryLogNumbers({
+    id:l.id,tab:l.tab,itemId:l.itemid,item:l.item,action:l.action,qty:Number(l.qty||0),unit:l.unit,
+    before:Number(l.before||0),after:Number(l.after||0),actionType:l.actiontype,timestamp:Number(l.timestamp||0),
+    dateKey:l.datekey||'',time:l.time||''
+  }));
+  const issues=[];
+  for(const [tab,items] of [['raw',rawItems],['fg',fgItems]]){
+    for(const item of items){
+      const r=replayLedger(tab,item,cloudLogs,{validatePhysical:false,validateRelations:false});
+      if(!r.ok){issues.push({tab,item:item.name,id:item.id,code:r.code,message:r.message});continue;}
+      if(r.stock < -1e-9) issues.push({tab,item:item.name,id:item.id,code:'negative_after_latest_stocktake',stock:r.stock,latestStocktake:r.latestStocktake});
+      if(r.relationIssues?.length) issues.push({tab,item:item.name,id:item.id,code:'invalid_sales_return_relation',details:r.relationIssues});
+    }
+  }
+  const result={ok:issues.length===0,checked:rawItems.length+fgItems.length,issues};
+  console.table(issues);
+  console.info('SB Ledger Integrity:',result);
+  return result;
+}
+window.sbCheckLedgerIntegrity=sbCheckLedgerIntegrity;
 
 // VIEWS
 function loginView() {
