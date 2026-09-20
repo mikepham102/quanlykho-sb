@@ -105,18 +105,18 @@
     /* Nhật Ký — thẻ giao dịch 2 bên, rõ người / mặt hàng / trạng thái */
     .audit-transaction-card { background:#fff; border-radius:16px; padding:13px 14px; border:1px solid #d8e7f0; box-shadow:0 3px 12px rgba(15,23,42,.06); }
     .audit-topline { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
-    .audit-employee { color:#f8fafc; background:linear-gradient(135deg,#0f3d5e,#075985); padding:7px 11px; border-radius:10px; font-size:13px; font-weight:900; line-height:1.15; box-shadow:0 2px 5px rgba(7,89,133,.18); }
-    .audit-time { color:#64748b; font-size:16px; font-weight:800; white-space:nowrap; }
+    .audit-employee { color:#f8fafc; background:linear-gradient(135deg,#0f3d5e,#075985); padding:7px 11px; border-radius:10px; font-size:15px; font-weight:900; line-height:1.15; box-shadow:0 2px 5px rgba(7,89,133,.18); }
+    .audit-time { color:#64748b; font-size:10px; font-weight:800; white-space:nowrap; }
     .audit-detail-row { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:28px; }
-    .audit-item-name { min-width:0; flex:1; color:#102a43; font-size:16px; background: linear-gradient(82deg, #fdba74, #dbe0e2); font-weight:850; line-height:1.25; }
+    .audit-item-name { min-width:0; flex:1; color:#102a43; font-size:13px; font-weight:850; line-height:1.25; }
     .audit-status { flex:0 0 auto; font-size:14px; font-weight:900; padding:5px 9px; border-radius:9px; line-height:1.1; white-space:nowrap; }
     .audit-status.import,.audit-status.production { background:#dcfce7; color:#166534; border:1px solid #86efac; }
     .audit-status.export,.audit-status.sales,.audit-status.waste { background:#dbeafe; color:#075985; border:1px solid #7dd3fc; }
     .audit-status.return { background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }
     .audit-status.stocktake,.audit-status.data_repair { background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; }
-    .audit-group-name { color:#991b1b; font-size:16px; font-weight:850; }
-    .audit-qty { color:#0f172a; font-size:16px; font-weight:900; white-space:nowrap; }
-    .audit-qty .unit { color:#475569; font-size:12px; font-weight:850; }
+    .audit-group-name { color:#991b1b; font-size:10px; font-weight:850; }
+    .audit-qty { color:#0f172a; font-size:13px; font-weight:900; white-space:nowrap; }
+    .audit-qty .unit { color:#475569; font-size:10px; font-weight:850; }
     .audit-divider { height:1px; background:#edf2f7; margin:7px 0; }
     .audit-conversion{margin:-1px 0 7px;padding:6px 8px;border-radius:8px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:9px;font-weight:800;line-height:1.35}
     .audit-search-box { display:flex; align-items:stretch; gap:8px; padding:10px; margin-bottom:2px; background:#fff; border:1px solid #d8e7f0; border-radius:14px; box-shadow:0 2px 8px rgba(15,23,42,.05); }
@@ -2981,12 +2981,16 @@ function prepareLedgerTransactions(tab, freshItem, freshLogs, ops) {
 
 async function verifyCloudLedgerItem(tab, itemId, expectedStock = null) {
   const table = tab === 'raw' ? 'raw_items' : 'fg_items';
-  const [{data:item,error:itemError},{data:rows,error:logError}] = await Promise.all([
+  // fetchAllCloudLogs() trả về MẢNG Log trực tiếp, không phải {data,error}.
+  // Không được destructure nó như một Supabase response.
+  const [itemResult, rows] = await Promise.all([
     supabaseClient.from(table).select('*').eq('id', itemId).maybeSingle(),
     fetchAllCloudLogs(itemId)
   ]);
+  const item = itemResult.data;
+  const itemError = itemResult.error;
   if (itemError) throw new Error(`Không thể xác minh mặt hàng trên Cloud: ${itemError.message || itemError}`);
-  if (logError) throw new Error(`Không thể xác minh Nhật Ký trên Cloud: ${logError.message || logError}`);
+  if (!Array.isArray(rows)) throw new Error('Không thể đọc Nhật Ký trên Cloud: dữ liệu Nhật Ký không hợp lệ.');
   if (!item) throw new Error('Mặt hàng không còn tồn tại trên Cloud.');
   const normalizedItem = normalizeInventoryItemNumbers(item, tab);
   const normalizedLogs = (rows || []).map(l => normalizeInventoryLogNumbers({
