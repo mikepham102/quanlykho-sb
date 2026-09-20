@@ -2611,7 +2611,7 @@ function inventoryView(dateKey=localDateKey()){
     else if(inventoryTab==='fg_other') groupOk=tab==='fg' && (x.category||'Khác')==='Khác';
     return nameOk && groupOk;
   });
-  const rows=filtered.map(([tab,x])=>{ const system=stockAtDate(tab,x,dateKey); const key=tab+'|'+x.id; const actual=saved[key]; const diff=actual==null?null:Number(actual)-system; const cls=diff===null?'':Math.abs(diff)<1e-9?'diff-zero':diff>0?'diff-plus':'diff-minus'; return `<div class="count-row"><div class="count-head"><div><div class="tool-name">${x.name}</div><div class="tool-unit">${tab==='raw'?'Kho Thô':'Thành phẩm'} · ${x.unit}</div></div><div style="width:100px"><input class="tool-input" id="count_${tab}_${x.id}" type="number" min="0" step="0.1" value="${actual==null?'':actual}" placeholder="Thực tế"></div></div><div class="tool-metrics"><div class="tool-metric"><span>Tồn hệ thống</span><b>${fmt(system)}</b></div><div class="tool-metric"><span>Thực tế</span><b>${actual==null?'—':fmt(actual)}</b></div><div class="tool-metric"><span>Chênh lệch</span><b class="${cls}">${diff===null?'—':(diff>0?'+':'')+fmt(diff)}</b></div></div></div>`; }).join('');
+  const rows=filtered.map(([tab,x])=>{ const system=stockAtDate(tab,x,dateKey); const key=tab+'|'+x.id; const actual=saved[key]; const diff=actual==null?null:Number(actual)-system; const cls=diff===null?'':Math.abs(diff)<1e-9?'diff-zero':diff>0?'diff-plus':'diff-minus'; return `<div class="count-row"><div class="count-head"><div><div class="tool-name">${x.name}</div><div class="tool-unit">${tab==='raw'?'Kho Thô':'Thành phẩm'} · ${x.unit}</div></div><div style="width:100px"><input class="tool-input" id="count_${tab}_${x.id}" type="text" inputmode="decimal" autocomplete="off" value="${actual==null?'':actual}" placeholder="Thực tế"></div></div><div class="tool-metrics"><div class="tool-metric"><span>Tồn hệ thống</span><b>${fmt(system)}</b></div><div class="tool-metric"><span>Thực tế</span><b>${actual==null?'—':fmt(actual)}</b></div><div class="tool-metric"><span>Chênh lệch</span><b class="${cls}">${diff===null?'—':(diff>0?'+':'')+fmt(diff)}</b></div></div></div>`; }).join('');
   const chip=(key,label)=>`<button class="filter-chip ${inventoryTab===key?'active':''}" onclick="inventoryTab='${key}';openModal(inventoryView('${dateKey}'))">${label}</button>`;
   return `<h2 style="font-size:18px">🧾 Kiểm kê hàng hóa</h2><div class="form-group" style="margin-top:10px"><label>Ngày kiểm kê</label><input id="countDate" type="date" value="${dateKey}" onchange="openModal(inventoryView(this.value))"></div><div class="tool-note">Nhập <b>tồn thực tế</b> sau khi đếm/cân. Nếu có chênh lệch, <b>Kiểm kê</b> là ngoại lệ duy nhất được phép cập nhật Tồn hệ thống và ghi Nhật Ký kiểm kê.</div><div class="inventory-filter"><input class="search-box" style="margin-bottom:8px" id="inventorySearch" type="search" value="${String(inventorySearch||'').replace(/"/g,'&quot;')}" placeholder="🔎 Tìm tên hàng hóa..." oninput="inventorySearch=this.value;openModal(inventoryView('${dateKey}'))"><div class="filter-scroll" style="margin-bottom:10px">${chip('all','Tất cả')}${chip('raw_hongphat','HỒNG PHÁT')}${chip('raw_tnt','TNT')}${chip('raw_baobì','BAO BÌ')}${chip('raw_other','Khác (Kho Thô)')}${chip('fg_drink','Đồ uống')}${chip('fg_topping','Topping')}${chip('fg_other','Khác (Thành phẩm)')}</div></div><div style="font-size:11px;color:var(--text-muted);margin:0 0 8px">Hiển thị ${filtered.length}/${all.length} mặt hàng</div><div>${rows || '<div class="empty-state">Không tìm thấy hàng hóa phù hợp.</div>'}</div><div class="inventory-actions"><button class="inventory-close" onclick="closeModal()">Đóng</button>${isOwnerRole()?'<button type="button" class="inventory-adjust" onclick="window.applyInventoryStocktake(); return false;">✓ Xác nhận kiểm kê</button>':''}</div>`;
 }
@@ -2782,7 +2782,7 @@ function openTableEntryModal(tab,id,type){
   const inputValue = hasPending ? ` value="${tableEsc(fmt(q.pending))}"` : '';
   const saveLabel = hasPending ? '💾 Cập nhật số chờ lưu' : '➕ Thêm vào chờ lưu';
   const deleteButton = hasPending ? `<button class="btn-cancel" style="color:#b91c1c;border-color:#fecaca;background:#fff1f2" onclick="deleteTableDraft('${tab}','${tableEsc(item.id)}','${type}')">🗑 Xóa số chờ lưu</button>` : '';
-  openModal(`<h2 style="font-size:18px">${tableEsc(item.name)}</h2><div style="font-size:13px;color:var(--text-muted);margin-top:2px">${tableEsc(labels[type]||type)} · ĐVT: <b>${tableEsc(item.unit)}</b></div><div class="notice-box" style="margin-top:10px">Đã ghi hôm nay: <b style="font-size:17px">${fmt(q.actual)} ${tableEsc(item.unit)}</b>${hasPending?`<br><span style="font-size:12px;color:#0369a1">Đang chờ lưu: +${fmt(q.pending)} ${tableEsc(item.unit)}</span>`:''}</div>${pendingBox}${costNote}<div class="form-group"><label>${hasPending?'Sửa số lượng đang chờ lưu':'Nhập số lượng'}</label><input id="tableEntryAmount" type="number" min="0.1" step="0.1" inputmode="decimal" placeholder="Nhập số lượng..."${inputValue} autofocus></div><div class="entry-help" style="margin-top:-2px">${hasPending?'Số đã ghi Cloud hôm nay không thay đổi. Chỉ số đang chờ lưu được sửa tại đây.':'Số bạn nhập chưa ghi Cloud. Anh có thể kiểm tra, sửa hoặc xóa trước khi Lưu.'}</div><div class="modal-buttons">${deleteButton}<button class="btn-cancel" onclick="closeModal()">Hủy</button><button class="btn-save" onclick="confirmTableEntry('${tab}','${tableEsc(item.id)}','${type}',${hasPending?'true':'false'})">${saveLabel}</button></div>`);
+  openModal(`<h2 style="font-size:18px">${tableEsc(item.name)}</h2><div style="font-size:13px;color:var(--text-muted);margin-top:2px">${tableEsc(labels[type]||type)} · ĐVT: <b>${tableEsc(item.unit)}</b></div><div class="notice-box" style="margin-top:10px">Đã ghi hôm nay: <b style="font-size:17px">${fmt(q.actual)} ${tableEsc(item.unit)}</b>${hasPending?`<br><span style="font-size:12px;color:#0369a1">Đang chờ lưu: +${fmt(q.pending)} ${tableEsc(item.unit)}</span>`:''}</div>${pendingBox}${costNote}<div class="form-group"><label>${hasPending?'Sửa số lượng đang chờ lưu':'Nhập số lượng'}</label><input id="tableEntryAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="Nhập số lượng..."${inputValue} autofocus></div><div class="entry-help" style="margin-top:-2px">${hasPending?'Số đã ghi Cloud hôm nay không thay đổi. Chỉ số đang chờ lưu được sửa tại đây.':'Số bạn nhập chưa ghi Cloud. Anh có thể kiểm tra, sửa hoặc xóa trước khi Lưu.'}</div><div class="modal-buttons">${deleteButton}<button class="btn-cancel" onclick="closeModal()">Hủy</button><button class="btn-save" onclick="confirmTableEntry('${tab}','${tableEsc(item.id)}','${type}',${hasPending?'true':'false'})">${saveLabel}</button></div>`);
   setTimeout(()=>document.getElementById('tableEntryAmount')?.focus(),50);
 }
 function confirmTableEntry(tab,id,type,isEdit=false){
@@ -2809,16 +2809,15 @@ function deleteTableDraft(tab,id,type){
   render();
 }
 function tableStockEnd(tab,item){
-  const d=tableDrafts[tableDraftKey(tab,item.id)]||{};
+  // QUY TẮC HIỂN THỊ MỚI:
+  // Tồn cuối chỉ phản ánh giao dịch ĐÃ LƯU. Các số đang nằm trong tableDrafts
+  // chỉ là dữ liệu chờ lưu và không được làm thay đổi Tồn cuối trước khi bấm Lưu.
+  // Việc kiểm tra tồn và tính before/after của nhiều giao dịch trong cùng một
+  // lần lưu vẫn được thực hiện tuần tự trong prepareLedgerTransactions().
   const range=dateRangeForView();
   const report=isDateFilterActive();
   const base=report?stockAtDate(tab,item,range.end):stockAtDate(tab,item,localDateKey());
-  if(!Number.isFinite(base)) return NaN;
-  if(report) return normalizeLedgerNumber(base);
-  const pending=tab==='raw'
-    ? Number(d.import||0)-Number(d.export||0)
-    : Number(d.production||0)-Number(d.sales||0)+Number(d.return||0)-Number(d.waste||0);
-  return normalizeLedgerNumber(base+pending);
+  return Number.isFinite(base) ? normalizeLedgerNumber(base) : NaN;
 }
 
 function tableCurrentStats(tab,item){ return tab==='raw'?getRawStatsByDate(item):getFGStatsByDate(item); }
@@ -3013,8 +3012,8 @@ async function saveTableRow(tab,id){
   if(!item)return showInventoryNotice('❌ Không tìm thấy mặt hàng','Mặt hàng không còn tồn tại trên màn hình.');
   const d={...(tableDrafts[key]||{})};
   const ops=(tab==='raw'
-    ? [{type:'import',qty:Number(d.import||0),actionName:'＋ Nhập kho'},{type:'export',qty:Number(d.export||0),actionName:'− Xuất kho'}]
-    : [{type:'production',qty:Number(d.production||0),actionName:'＋ Nấu thêm'},{type:'sales',qty:Number(d.sales||0),actionName:'− Xuất bán'},{type:'return',qty:Number(d.return||0),actionName:'↩ Thu hồi'},{type:'waste',qty:Number(d.waste||0),actionName:'− Hủy món'}]
+    ? [{type:'import',qty:normalizeQty1(d.import||0),actionName:'＋ Nhập kho'},{type:'export',qty:normalizeQty1(d.export||0),actionName:'− Xuất kho'}]
+    : [{type:'production',qty:normalizeQty1(d.production||0),actionName:'＋ Nấu thêm'},{type:'sales',qty:normalizeQty1(d.sales||0),actionName:'− Xuất bán'},{type:'return',qty:normalizeQty1(d.return||0),actionName:'↩ Thu hồi'},{type:'waste',qty:normalizeQty1(d.waste||0),actionName:'− Hủy món'}]
   ).filter(o=>o.qty>0);
   if(!ops.length)return;
   tableSavingKey=key;updateTableRowUI(tab,id);
@@ -3032,7 +3031,25 @@ async function saveTableRow(tab,id){
       username:l.userid||'',timestamp:Number(l.timestamp||0),dateKey:l.datekey||'',editedAt:l.editedat||null,
       editedBy:l.editedby||null,time:l.time||''
     }));
-    const preparedResult=prepareLedgerTransactions(tab,normalizeInventoryItemNumbers(freshItem,tab),freshLogs,ops);
+
+    // Cloud là nguồn sự thật khi bấm Lưu. Nếu máy này đang hiển thị tồn cũ do
+    // Realtime chưa kịp đồng bộ, không được dùng con số cũ để cho người dùng
+    // thao tác tiếp. Đồng bộ lại giao diện ngay trong lần lưu này.
+    const normalizedFreshItem=normalizeInventoryItemNumbers(freshItem,tab);
+    const cloudStock=calculateStockFromLogs(tab,normalizedFreshItem,freshLogs,Date.now());
+    const localStock=stockAtDate(tab,item,localDateKey());
+    if(Number.isFinite(cloudStock) && Number.isFinite(localStock) && Math.abs(normalizeLedgerNumber(cloudStock)-normalizeLedgerNumber(localStock))>1e-9){
+      if(tab==='raw') Object.assign(item,normalizedFreshItem); else Object.assign(item,normalizedFreshItem);
+      if(tab==='raw') raw=raw.map(x=>sameLedgerItemId(x.id,id)?normalizedFreshItem:x);
+      else fg=fg.map(x=>sameLedgerItemId(x.id,id)?normalizedFreshItem:x);
+      logs=freshLogs;
+      sortLogsNewestFirst();
+      saveLocalState();
+      render();
+      throw new Error(`Dữ liệu trên màn hình vừa cũ hơn Cloud. Tồn Cloud hiện tại của “${normalizedFreshItem.name}” là ${fmt(cloudStock)} ${normalizedFreshItem.unit}. Hệ thống đã tự đồng bộ lại. Vui lòng kiểm tra lại số tồn rồi thao tác lại.`);
+    }
+
+    const preparedResult=prepareLedgerTransactions(tab,normalizedFreshItem,freshLogs,ops);
     if(!preparedResult.ok)throw new Error(preparedResult.message||'Không thể chuẩn bị giao dịch theo Ledger.');
 
     const now=Date.now();
@@ -3084,7 +3101,7 @@ async function saveTableRow(tab,id){
 function tableHeader(tab){ return tab==='raw'?`<thead><tr><th><div id="tableActiveGroup">Tất cả</div></th><th>Tồn đầu</th><th>Nhập kho</th><th>Xuất kho</th><th>Tồn kho</th><th>Xác nhận</th></tr></thead>`:`<thead><tr><th><div id="tableActiveGroup">Tất cả</div></th><th>Tồn đầu</th><th>Nấu thêm</th><th>Xuất bán</th><th>Thu hồi</th><th>Hủy</th><th>Tồn cuối</th><th>Xác nhận</th></tr></thead>`; }
 function tableRowRaw(item,report){ const key=tableDraftKey('raw',item.id),s=tableCurrentStats('raw',item); return `<tr class="data-row"><td><div class="item-cell-name">${tableEsc(item.name)}</div><div class="item-cell-unit">ĐVT: ${tableEsc(item.unit)}</div></td><td><div class="stock-static">${fmt(s.opening)}</div></td><td>${tableCellInput('raw',item,'import',report)}</td><td>${tableCellInput('raw',item,'export',report)}</td><td><div data-stock-end-key="${tableEsc(key)}" style="font-size:17px;font-weight:900;color:${(tableStockEnd('raw',item)<0)?'#dc2626':'#0284c7'}">${fmt(tableStockEnd('raw',item))}</div></td><td><button type="button" data-save-key="${tableEsc(key)}" class="entry-save ${tableDraftHasData('raw',item.id)&&!report?'ready':''}" ${report||!tableDraftHasData('raw',item.id)?'disabled':''} onclick="saveTableRow('raw','${tableEsc(item.id)}')">Lưu</button></td></tr>`; }
 function tableRowFG(item,report){ const key=tableDraftKey('fg',item.id),s=tableCurrentStats('fg',item); return `<tr class="data-row"><td><div class="item-cell-name">${tableEsc(item.name)}</div><div class="item-cell-unit">ĐVT: ${tableEsc(item.unit)}</div></td><td><div class="stock-static">${fmt(s.opening)}</div></td><td>${tableCellInput('fg',item,'production',report)}</td><td>${tableCellInput('fg',item,'sales',report)}</td><td>${tableCellInput('fg',item,'return',report)}</td><td>${tableCellInput('fg',item,'waste',report)}</td><td><div data-stock-end-key="${tableEsc(key)}" style="font-size:17px;font-weight:900;color:${(tableStockEnd('fg',item)<0)?'#dc2626':'#0284c7'}">${fmt(tableStockEnd('fg',item))}</div></td><td><button type="button" data-save-key="${tableEsc(key)}" class="entry-save ${tableDraftHasData('fg',item.id)&&!report?'ready':''}" ${report||!tableDraftHasData('fg',item.id)?'disabled':''} onclick="saveTableRow('fg','${tableEsc(item.id)}')">Lưu</button></td></tr>`; }
-function tableView(tab){ const report=isDateFilterActive(),arr=tab==='raw'?raw:fg,groupGetter=tab==='raw'?(x=>x.group):(x=>x.category),selected=tab==='raw'?rawGroup:fgGroup,filtered=sortItemsForDisplay(arr.filter(x=>(selected==='Tất cả'||groupGetter(x)===selected)&&String(x.name||'').toLowerCase().includes(String(query||'').toLowerCase()))),rows=[],groups=tab==='raw'?['Tất cả','HỒNG PHÁT','TNT','BAO BÌ','Khác']:['Tất cả','Đồ uống','Topping','Khác']; let last=null; for(const item of filtered){const g=groupGetter(item)||'Khác';if(g!==last){rows.push(`<tr class="group-row" data-group="${tableEsc(g)}"><td><div class="group-label"><span class="group-dot"></span>${tableEsc(g)}</div></td>${tab==='raw'?'<td colspan="5"></td>':'<td colspan="7"></td>'}</tr>`);last=g;}rows.push(tab==='raw'?tableRowRaw(item,report):tableRowFG(item,report));} const note=report?'📅 Đang xem lại dữ liệu — các ô Nhập/Xuất/Nấu thêm/Bán/Thu hồi/Hủy hiển thị tổng biến động thực tế của kỳ đã chọn, chỉ xem. Bấm “Về hiện tại” để nhập liệu.':'📌 Ngày hiện tại: các ô biến động hiển thị số đã ghi thực tế trong hôm nay. Bấm vào ô để nhập thêm; số mới sẽ cộng vào tổng hôm nay. Tồn đầu và Tồn cuối do hệ thống tự tính.'; return `${dateFilterView()}<div class="filter-wrapper"><div class="filter-scroll">${groups.map(g=>`<button class="filter-chip ${selected===g?'active':''}" onclick="${tab==='raw'?'rawGroup':'fgGroup'}='${tableEsc(g)}';render()">${tableEsc(g)}</button>`).join('')}</div></div><div class="entry-help">${note}</div><div class="table-entry-wrap"><div class="table-scroll"><table class="entry-table">${tableHeader(tab)}<tbody>${rows.join('')||`<tr><td colspan="${tab==='raw'?6:8}" class="table-empty">Chưa có dữ liệu.</td></tr>`}</tbody></table></div></div>` + (requestAnimationFrame(initTableStickyGroup), ""); }
+function tableView(tab){ const report=isDateFilterActive(),arr=tab==='raw'?raw:fg,groupGetter=tab==='raw'?(x=>x.group):(x=>x.category),selected=tab==='raw'?rawGroup:fgGroup,filtered=sortItemsForDisplay(arr.filter(x=>(selected==='Tất cả'||groupGetter(x)===selected)&&String(x.name||'').toLowerCase().includes(String(query||'').toLowerCase()))),rows=[],groups=tab==='raw'?['Tất cả','HỒNG PHÁT','TNT','BAO BÌ','Khác']:['Tất cả','Đồ uống','Topping','Khác']; let last=null; for(const item of filtered){const g=groupGetter(item)||'Khác';if(g!==last){rows.push(`<tr class="group-row" data-group="${tableEsc(g)}"><td><div class="group-label"><span class="group-dot"></span>${tableEsc(g)}</div></td>${tab==='raw'?'<td colspan="5"></td>':'<td colspan="7"></td>'}</tr>`);last=g;}rows.push(tab==='raw'?tableRowRaw(item,report):tableRowFG(item,report));} const note=report?'📅 Đang xem lại dữ liệu — các ô Nhập/Xuất/Nấu thêm/Bán/Thu hồi/Hủy hiển thị tổng biến động thực tế của kỳ đã chọn, chỉ xem. Bấm “Về hiện tại” để nhập liệu.':'📌 Ngày hiện tại: các ô biến động hiển thị số đã ghi thực tế trong hôm nay. Bấm vào ô để nhập thêm; số mới sẽ nằm ở trạng thái chờ lưu. Tồn cuối chỉ cập nhật sau khi bấm “Lưu”.'; return `${dateFilterView()}<div class="filter-wrapper"><div class="filter-scroll">${groups.map(g=>`<button class="filter-chip ${selected===g?'active':''}" onclick="${tab==='raw'?'rawGroup':'fgGroup'}='${tableEsc(g)}';render()">${tableEsc(g)}</button>`).join('')}</div></div><div class="entry-help">${note}</div><div class="table-entry-wrap"><div class="table-scroll"><table class="entry-table">${tableHeader(tab)}<tbody>${rows.join('')||`<tr><td colspan="${tab==='raw'?6:8}" class="table-empty">Chưa có dữ liệu.</td></tr>`}</tbody></table></div></div>` + (requestAnimationFrame(initTableStickyGroup), ""); }
 
 // QA Ledger: có thể gọi từ DevTools: await window.sbCheckLedgerIntegrity()
 // Không thay đổi dữ liệu. Chỉ đọc Cloud và báo các mặt hàng có vấn đề sau mốc kiểm kê.
