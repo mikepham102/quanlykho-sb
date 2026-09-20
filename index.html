@@ -103,20 +103,20 @@
     .audit-change { color:#9a3412; }
     .audit-edited-meta { margin-left:auto; white-space:nowrap; color:#c2410c; }
     /* Nhật Ký — thẻ giao dịch 2 bên, rõ người / mặt hàng / trạng thái */
-   .audit-transaction-card { background:#fff; border-radius:16px; padding:13px 14px; border:1px solid #d8e7f0; box-shadow:0 3px 12px rgba(15,23,42,.06); }
+    .audit-transaction-card { background:#fff; border-radius:16px; padding:13px 14px; border:1px solid #d8e7f0; box-shadow:0 3px 12px rgba(15,23,42,.06); }
     .audit-topline { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
-    .audit-employee { color:#f8fafc; background:linear-gradient(135deg,#0f3d5e,#075985); padding:7px 11px; border-radius:10px; font-size:13px; font-weight:900; line-height:1.15; box-shadow:0 2px 5px rgba(7,89,133,.18); }
-    .audit-time { color:#64748b; font-size:16px; font-weight:800; white-space:nowrap; }
+    .audit-employee { color:#f8fafc; background:linear-gradient(135deg,#0f3d5e,#075985); padding:7px 11px; border-radius:10px; font-size:15px; font-weight:900; line-height:1.15; box-shadow:0 2px 5px rgba(7,89,133,.18); }
+    .audit-time { color:#64748b; font-size:10px; font-weight:800; white-space:nowrap; }
     .audit-detail-row { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:28px; }
-    .audit-item-name { min-width:0; flex:1; color:#102a43; font-size:16px; background: linear-gradient(82deg, #fdba74, #dbe0e2); font-weight:850; line-height:1.25; }
+    .audit-item-name { min-width:0; flex:1; color:#102a43; font-size:13px; font-weight:850; line-height:1.25; }
     .audit-status { flex:0 0 auto; font-size:14px; font-weight:900; padding:5px 9px; border-radius:9px; line-height:1.1; white-space:nowrap; }
     .audit-status.import,.audit-status.production { background:#dcfce7; color:#166534; border:1px solid #86efac; }
     .audit-status.export,.audit-status.sales,.audit-status.waste { background:#dbeafe; color:#075985; border:1px solid #7dd3fc; }
     .audit-status.return { background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }
     .audit-status.stocktake,.audit-status.data_repair { background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; }
-    .audit-group-name { color:#991b1b; font-size:16px; font-weight:850; }
-    .audit-qty { color:#0f172a; font-size:16px; font-weight:900; white-space:nowrap; }
-    .audit-qty .unit { color:#475569; font-size:12px; font-weight:850; }
+    .audit-group-name { color:#991b1b; font-size:10px; font-weight:850; }
+    .audit-qty { color:#0f172a; font-size:13px; font-weight:900; white-space:nowrap; }
+    .audit-qty .unit { color:#475569; font-size:10px; font-weight:850; }
     .audit-divider { height:1px; background:#edf2f7; margin:7px 0; }
     .audit-conversion{margin:-1px 0 7px;padding:6px 8px;border-radius:8px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:9px;font-weight:800;line-height:1.35}
     .audit-search-box { display:flex; align-items:stretch; gap:8px; padding:10px; margin-bottom:2px; background:#fff; border:1px solid #d8e7f0; border-radius:14px; box-shadow:0 2px 8px rgba(15,23,42,.05); }
@@ -1410,6 +1410,21 @@ async function confirmAllDrafts() {
     const trial = JSON.parse(JSON.stringify(freshItem));
     const prepared = [];
     let trialStock = normalizeLedgerNumber(calculateStockFromLogs(draftTab, freshItem, freshLogs));
+    // Tính lượng Xuất bán còn có thể Thu hồi/Hủy từ toàn bộ Ledger Cloud.
+    // Kiểm kê không xóa quan hệ này.
+    let trialSoldOutstanding = 0;
+    if (draftTab === 'fg') {
+      const orderedFreshLogs = freshLogs
+        .filter(l => logBelongsToItem(l, 'fg', freshItem))
+        .map((l, idx) => ({l, idx}))
+        .sort((a,b) => logTimestamp(a.l,a.idx) - logTimestamp(b.l,b.idx) || a.idx - b.idx);
+      for (const {l} of orderedFreshLogs) {
+        const t = normalizeActionType(l);
+        const q = Number(l.qty || 0);
+        if (t === 'sales') trialSoldOutstanding = normalizeLedgerNumber(trialSoldOutstanding + q);
+        else if (t === 'return' || t === 'waste') trialSoldOutstanding = normalizeLedgerNumber(trialSoldOutstanding - q);
+      }
+    }
 
     // Không khóa toàn bộ giao dịch chỉ vì dữ liệu lịch sử đang âm.
     // Giao dịch tăng tồn (Nấu thêm/Thu hồi/Nhập kho) được phép dùng để phục hồi Ledger.
@@ -1427,6 +1442,17 @@ async function confirmAllDrafts() {
 
       const before = normalizeLedgerNumber(trialStock);
       const decreasing = isStockDecreasingAction(draftTab, draft.type);
+      if (draftTab === 'fg' && (draft.type === 'return' || draft.type === 'waste')) {
+        if (qty > trialSoldOutstanding + 1e-9) {
+          return showInventoryNotice(
+            '⚠️ KHÔNG ĐỦ PHẦN ĐÃ XUẤT BÁN',
+            `${actionLabel(draftTab, draft.type)} ${fmt(qty)} ${freshItem.unit} vượt quá phần đã Xuất bán nhưng chưa được Thu hồi/Hủy.\n\nPhần còn có thể xử lý chỉ ${fmt(Math.max(0, trialSoldOutstanding))} ${freshItem.unit}.\nDữ liệu chưa được lưu.`
+          );
+        }
+        trialSoldOutstanding = normalizeLedgerNumber(trialSoldOutstanding - qty);
+      } else if (draftTab === 'fg' && draft.type === 'sales') {
+        trialSoldOutstanding = normalizeLedgerNumber(trialSoldOutstanding + qty);
+      }
       if (decreasing && qty > Math.max(0, before) + 1e-9) {
         const verb = draftTab === 'raw'
           ? 'xuất kho'
@@ -1874,9 +1900,33 @@ function simulateItemLedger(tab, item, overrideLogId = null, overrideQty = null,
 
   const state = {
     opening: stock,
-    imported: 0, exported: 0, production: 0, sales: 0, returned: 0, waste: 0
+    imported: 0, exported: 0, production: 0, sales: 0, returned: 0, waste: 0,
+    // Lượng đã Xuất bán nhưng chưa được Thu hồi/Hủy. Đây là quan hệ nghiệp vụ
+    // độc lập với tồn kho vật lý: Kiểm kê reset mốc tồn nhưng không xóa lịch sử
+    // quyền được Thu hồi/Hủy của các giao dịch đã bán.
+    soldOutstanding: 0
   };
-  const results = [];
+
+  // Quan hệ Xuất bán ↔ Thu hồi/Hủy phải được dựng từ TOÀN BỘ lịch sử,
+  // không được reset theo mốc Kiểm kê. Ví dụ hàng đã bán trước ngày kiểm kê
+  // vẫn có thể được thu hồi sau ngày kiểm kê.
+  if (tab === 'fg') {
+    for (let i = 0; i < itemLogs.length; i++) {
+      const l = itemLogs[i].l;
+      const type = normalizeActionType(l);
+      const qty = l.id === overrideLogId ? Number(overrideQty) : Number(l.qty);
+      if (!Number.isFinite(qty) || qty < 0) {
+        return { ok:false, message:`Nhật ký "${l.action}" của ${item.name} có số lượng không hợp lệ.` };
+      }
+      if (type === 'sales') state.soldOutstanding = normalizeLedgerNumber(state.soldOutstanding + qty);
+      else if (type === 'return' || type === 'waste') {
+        if (qty > state.soldOutstanding + 1e-9) {
+          return { ok:false, message:`Nhật ký "${l.action}" ${fmt(qty)} ${item.unit} vượt quá phần đã Xuất bán nhưng chưa được Thu hồi/Hủy. Phần còn có thể xử lý chỉ ${fmt(Math.max(0, state.soldOutstanding))} ${item.unit}.` };
+        }
+        state.soldOutstanding = normalizeLedgerNumber(state.soldOutstanding - qty);
+      }
+    }
+  }
 
   for (let i = startIndex; i < itemLogs.length; i++) {
     const l = itemLogs[i].l;
@@ -2712,15 +2762,35 @@ function openTableEntryModal(tab,id,type){
   if(!item)return;
   const labels={import:'Nhập kho',export:'Xuất kho',production:'Nấu thêm',sales:'Xuất bán',return:'Thu hồi',waste:'Hủy món'};
   const q=tableLiveQty(tab,item,type);
-  const costNote = isOwnerRole() && tab === 'raw' && type === 'import' ? `<div style=\"margin-top:8px;font-size:12px;color:#166534;font-weight:800\">Giá vốn đang dùng: ${rawUnitCost(item) ? fmtMoney(rawUnitCost(item)) + ' / ' + tableEsc(item.unit) : 'Chưa đặt'}</div>` : '';
-  openModal(`<h2 style="font-size:18px">${tableEsc(item.name)}</h2><div style="font-size:13px;color:var(--text-muted);margin-top:2px">${tableEsc(labels[type]||type)} · ĐVT: <b>${tableEsc(item.unit)}</b></div><div class="notice-box" style="margin-top:10px">Đã ghi hôm nay: <b style="font-size:17px">${fmt(q.actual)} ${tableEsc(item.unit)}</b>${q.pending>0?`<br><span style="font-size:12px;color:#0369a1">Đang chờ lưu: +${fmt(q.pending)} ${tableEsc(item.unit)}</span>`:''}</div>${costNote}<div class="form-group"><label>Nhập thêm</label><input id="tableEntryAmount" type="number" min="0.1" step="0.1" inputmode="decimal" placeholder="Nhập số lượng..." autofocus></div><div class="entry-help" style="margin-top:-2px">Số đã ghi hôm nay được giữ nguyên. Số bạn nhập sẽ được cộng thêm vào giao dịch của hôm nay.</div><div class="modal-buttons"><button class="btn-cancel" onclick="closeModal()">Hủy</button><button class="btn-save" onclick="confirmTableEntry('${tab}','${tableEsc(item.id)}','${type}')">➕ Thêm</button></div>`);
+  const hasPending=q.pending>0;
+  const costNote = isOwnerRole() && tab === 'raw' && type === 'import' ? `<div style="margin-top:8px;font-size:12px;color:#166534;font-weight:800">Giá vốn đang dùng: ${rawUnitCost(item) ? fmtMoney(rawUnitCost(item)) + ' / ' + tableEsc(item.unit) : 'Chưa đặt'}</div>` : '';
+  const pendingBox = hasPending ? `<div class="notice-box" style="margin-top:8px;background:#eff6ff;border-color:#bfdbfe;color:#075985"><b>Số đang chờ lưu: ${fmt(q.pending)} ${tableEsc(item.unit)}</b><br><span style="font-size:12px">Anh có thể sửa lại hoặc xóa số này trước khi bấm Lưu.</span></div>` : '';
+  const inputValue = hasPending ? ` value="${tableEsc(fmt(q.pending))}"` : '';
+  const saveLabel = hasPending ? '💾 Cập nhật số chờ lưu' : '➕ Thêm vào chờ lưu';
+  const deleteButton = hasPending ? `<button class="btn-cancel" style="color:#b91c1c;border-color:#fecaca;background:#fff1f2" onclick="deleteTableDraft('${tab}','${tableEsc(item.id)}','${type}')">🗑 Xóa số chờ lưu</button>` : '';
+  openModal(`<h2 style="font-size:18px">${tableEsc(item.name)}</h2><div style="font-size:13px;color:var(--text-muted);margin-top:2px">${tableEsc(labels[type]||type)} · ĐVT: <b>${tableEsc(item.unit)}</b></div><div class="notice-box" style="margin-top:10px">Đã ghi hôm nay: <b style="font-size:17px">${fmt(q.actual)} ${tableEsc(item.unit)}</b>${hasPending?`<br><span style="font-size:12px;color:#0369a1">Đang chờ lưu: +${fmt(q.pending)} ${tableEsc(item.unit)}</span>`:''}</div>${pendingBox}${costNote}<div class="form-group"><label>${hasPending?'Sửa số lượng đang chờ lưu':'Nhập số lượng'}</label><input id="tableEntryAmount" type="number" min="0.1" step="0.1" inputmode="decimal" placeholder="Nhập số lượng..."${inputValue} autofocus></div><div class="entry-help" style="margin-top:-2px">${hasPending?'Số đã ghi Cloud hôm nay không thay đổi. Chỉ số đang chờ lưu được sửa tại đây.':'Số bạn nhập chưa ghi Cloud. Anh có thể kiểm tra, sửa hoặc xóa trước khi Lưu.'}</div><div class="modal-buttons">${deleteButton}<button class="btn-cancel" onclick="closeModal()">Hủy</button><button class="btn-save" onclick="confirmTableEntry('${tab}','${tableEsc(item.id)}','${type}',${hasPending?'true':'false'})">${saveLabel}</button></div>`);
   setTimeout(()=>document.getElementById('tableEntryAmount')?.focus(),50);
 }
-function confirmTableEntry(tab,id,type){
+function confirmTableEntry(tab,id,type,isEdit=false){
   const qty=normalizeQty1(document.getElementById('tableEntryAmount')?.value||0);
   if(!validatePositiveQty(qty)) return showInventoryNotice('⚠️ Số lượng không hợp lệ','Vui lòng nhập số lượng lớn hơn 0.');
-  const key=tableDraftKey(tab,id),old=Number(tableDrafts[key]?.[type]||0);
-  setTableDraft(tab,id,type,old+qty);
+  const key=tableDraftKey(tab,id);
+  if(!tableDrafts[key]) tableDrafts[key]={};
+  if(isEdit){
+    setTableDraft(tab,id,type,qty);
+  }else{
+    const old=Number(tableDrafts[key]?.[type]||0);
+    setTableDraft(tab,id,type,old+qty);
+  }
+  closeModal();
+  render();
+}
+function deleteTableDraft(tab,id,type){
+  const key=tableDraftKey(tab,id);
+  if(tableDrafts[key]){
+    delete tableDrafts[key][type];
+    if(!tableDraftHasData(tab,id)) delete tableDrafts[key];
+  }
   closeModal();
   render();
 }
@@ -2810,7 +2880,7 @@ function initTableStickyGroup(){
   requestAnimationFrame(()=>{buildFloatingHeader();update();});
 }
 function updateTableRowUI(tab,id){ const key=tableDraftKey(tab,id),d=tableDrafts[key]||{},btn=document.querySelector(`[data-save-key="${CSS.escape(key)}"]`),end=document.querySelector(`[data-stock-end-key="${CSS.escape(key)}"]`),has=Object.values(d).some(v=>Number(v)>0); if(btn){btn.classList.toggle('ready',has&&!tableSavingKey);btn.disabled=!has||!!tableSavingKey;btn.textContent=tableSavingKey===key?'⏳':'Lưu';} if(end){const item=(tab==='raw'?raw:fg).find(x=>sameLedgerItemId(x.id,id));if(item)end.textContent=fmt(tableStockEnd(tab,item));} }
-async function saveTableRow(tab,id){ const key=tableDraftKey(tab,id); if(tableSavingKey)return; if(isDateFilterActive())return showInventoryNotice('📅 Đang xem báo cáo','Hãy bấm “Về hiện tại” trước khi nhập liệu.'); const arr=tab==='raw'?raw:fg,item=arr.find(x=>sameLedgerItemId(x.id,id)); if(!item)return showInventoryNotice('❌ Không tìm thấy mặt hàng','Mặt hàng không còn tồn tại trên màn hình.'); const d={...(tableDrafts[key]||{})}; const ops=(tab==='raw'?[{type:'import',qty:Number(d.import||0),actionName:'＋ Nhập kho'},{type:'export',qty:Number(d.export||0),actionName:'− Xuất kho'}]:[{type:'production',qty:Number(d.production||0),actionName:'＋ Nấu thêm'},{type:'sales',qty:Number(d.sales||0),actionName:'− Xuất bán'},{type:'return',qty:Number(d.return||0),actionName:'↩ Thu hồi'},{type:'waste',qty:Number(d.waste||0),actionName:'− Hủy món'}]).filter(o=>o.qty>0); if(!ops.length)return; tableSavingKey=key;updateTableRowUI(tab,id); try{ const itemTable=tab==='raw'?'raw_items':'fg_items'; const {data:freshItem,error:freshError}=await supabaseClient.from(itemTable).select('*').eq('id',item.id).maybeSingle(); if(freshError||!freshItem)throw new Error(freshError?.message||'Không tìm thấy dữ liệu mặt hàng trên Cloud.'); const {data:cloudLogs,error:logsError}=await supabaseClient.from('logs').select('*').eq('tab',tab); if(logsError)throw new Error(`Không thể đọc Nhật Ký Cloud: ${logsError.message||logsError}`); const freshLogs=(cloudLogs||[]).map(l=>({id:l.id,tab:l.tab,itemId:l.itemid,item:l.item,action:l.action,qty:Number(l.qty||0),unit:l.unit,before:Number(l.before||0),after:Number(l.after||0),actionType:l.actiontype,user:l.user,username:l.userid||'',timestamp:Number(l.timestamp||0),dateKey:l.datekey||'',editedAt:l.editedat||null,editedBy:l.editedby||null,time:l.time||''})); let stock=normalizeLedgerNumber(calculateStockFromLogs(tab,freshItem,freshLogs)); const updated=JSON.parse(JSON.stringify(freshItem)),prepared=[]; for(const op of ops){ if(!validatePositiveQty(op.qty))throw new Error(`${op.actionName}: số lượng phải lớn hơn 0.`); if(isStockDecreasingAction(tab,op.type)&&op.qty>stock+1e-9)throw new Error(`Không đủ tồn kho để ${op.actionName.toLowerCase()}. Tồn hiện có: ${fmt(stock)} ${freshItem.unit}.`); const before=normalizeLedgerNumber(stock); if(tab==='raw'){if(op.type==='import')stock+=op.qty;else stock-=op.qty;}else{if(op.type==='production'||op.type==='return')stock+=op.qty;else stock-=op.qty;} stock=normalizeLedgerNumber(stock); applyDraftToItem(updated,tab,op.type,op.qty); if(isStockDecreasingAction(tab,op.type)&&stock < 0)throw new Error(`${op.actionName} làm tồn kho âm.`); prepared.push({...op,before,after:stock}); }
+async function saveTableRow(tab,id){ const key=tableDraftKey(tab,id); if(tableSavingKey)return; if(isDateFilterActive())return showInventoryNotice('📅 Đang xem báo cáo','Hãy bấm “Về hiện tại” trước khi nhập liệu.'); const arr=tab==='raw'?raw:fg,item=arr.find(x=>sameLedgerItemId(x.id,id)); if(!item)return showInventoryNotice('❌ Không tìm thấy mặt hàng','Mặt hàng không còn tồn tại trên màn hình.'); const d={...(tableDrafts[key]||{})}; const ops=(tab==='raw'?[{type:'import',qty:Number(d.import||0),actionName:'＋ Nhập kho'},{type:'export',qty:Number(d.export||0),actionName:'− Xuất kho'}]:[{type:'production',qty:Number(d.production||0),actionName:'＋ Nấu thêm'},{type:'sales',qty:Number(d.sales||0),actionName:'− Xuất bán'},{type:'return',qty:Number(d.return||0),actionName:'↩ Thu hồi'},{type:'waste',qty:Number(d.waste||0),actionName:'− Hủy món'}]).filter(o=>o.qty>0); if(!ops.length)return; tableSavingKey=key;updateTableRowUI(tab,id); try{ const itemTable=tab==='raw'?'raw_items':'fg_items'; const {data:freshItem,error:freshError}=await supabaseClient.from(itemTable).select('*').eq('id',item.id).maybeSingle(); if(freshError||!freshItem)throw new Error(freshError?.message||'Không tìm thấy dữ liệu mặt hàng trên Cloud.'); const {data:cloudLogs,error:logsError}=await supabaseClient.from('logs').select('*').eq('tab',tab); if(logsError)throw new Error(`Không thể đọc Nhật Ký Cloud: ${logsError.message||logsError}`); const freshLogs=(cloudLogs||[]).map(l=>({id:l.id,tab:l.tab,itemId:l.itemid,item:l.item,action:l.action,qty:Number(l.qty||0),unit:l.unit,before:Number(l.before||0),after:Number(l.after||0),actionType:l.actiontype,user:l.user,username:l.userid||'',timestamp:Number(l.timestamp||0),dateKey:l.datekey||'',editedAt:l.editedat||null,editedBy:l.editedby||null,time:l.time||''})); let stock=normalizeLedgerNumber(calculateStockFromLogs(tab,freshItem,freshLogs)); const updated=JSON.parse(JSON.stringify(freshItem)),prepared=[]; let soldOutstanding=0; if(tab==='fg'){ const ordered=freshLogs.filter(l=>logBelongsToItem(l,'fg',freshItem)).map((l,idx)=>({l,idx})).sort((a,b)=>logTimestamp(a.l,a.idx)-logTimestamp(b.l,b.idx)||a.idx-b.idx); for(const {l} of ordered){const t=normalizeActionType(l),q=Number(l.qty||0); if(t==='sales')soldOutstanding=normalizeLedgerNumber(soldOutstanding+q); else if(t==='return'||t==='waste')soldOutstanding=normalizeLedgerNumber(soldOutstanding-q);} } for(const op of ops){ if(!validatePositiveQty(op.qty))throw new Error(`${op.actionName}: số lượng phải lớn hơn 0.`); if(tab==='fg'&&(op.type==='return'||op.type==='waste')){if(op.qty>soldOutstanding+1e-9)throw new Error(`${op.actionName} ${fmt(op.qty)} ${freshItem.unit} vượt quá phần đã Xuất bán nhưng chưa được Thu hồi/Hủy. Phần còn có thể xử lý chỉ ${fmt(Math.max(0,soldOutstanding))} ${freshItem.unit}.`); soldOutstanding=normalizeLedgerNumber(soldOutstanding-op.qty);} else if(tab==='fg'&&op.type==='sales'){soldOutstanding=normalizeLedgerNumber(soldOutstanding+op.qty);} if(isStockDecreasingAction(tab,op.type)&&op.qty>stock+1e-9)throw new Error(`Không đủ tồn kho để ${op.actionName.toLowerCase()}. Tồn hiện có: ${fmt(stock)} ${freshItem.unit}.`); const before=normalizeLedgerNumber(stock); if(tab==='raw'){if(op.type==='import')stock+=op.qty;else stock-=op.qty;}else{if(op.type==='production'||op.type==='return')stock+=op.qty;else stock-=op.qty;} stock=normalizeLedgerNumber(stock); applyDraftToItem(updated,tab,op.type,op.qty); if(isStockDecreasingAction(tab,op.type)&&stock < 0)throw new Error(`${op.actionName} làm tồn kho âm.`); prepared.push({...op,before,after:stock}); }
  const now=Date.now(),userName=`${currentUser.name} (${roleLabel(currentUser.role)})`; const payload=prepared.map((p,i)=>({id:'log_'+now+'_'+Math.random().toString(36).slice(2,9)+'_'+i,tab,itemid:freshItem.id,item:freshItem.name,action:p.actionName,qty:p.qty,unit:freshItem.unit,before:p.before,after:p.after,actiontype:p.type,unitcost:tab==='raw'&&p.type==='import'?rawUnitCost(freshItem):0,conversionunit:tab==='raw'&&p.type==='export'?rawConversionUnit(freshItem):'',conversionqty:tab==='raw'&&p.type==='export'?rawConversionQty(freshItem):0,dosage:tab==='raw'&&p.type==='export'?rawUsagePerProduct(freshItem):0,wasteqty:tab==='raw'&&p.type==='export'?rawWasteQty(freshItem):0,yieldqty:tab==='raw'&&p.type==='export'?rawYieldPerSourceUnit(freshItem)*p.qty:0,timestamp:now+i,datekey:localDateKey(),userid:currentUser.id||currentUser.username||'',user:userName,time:dateTime(),editedat:null,editedby:null})); const {error:insertError}=await supabaseClient.from('logs').insert(payload); if(insertError)throw new Error(`Không thể ghi Nhật Ký Cloud: ${insertError.message||insertError}`); const {error:itemError}=await supabaseClient.from(itemTable).update(updated).eq('id',freshItem.id); if(itemError)console.warn('Không cập nhật được cột tổng; Ledger vẫn dùng Log Cloud:',itemError.message||itemError); const localItem=arr.find(x=>sameLedgerItemId(x.id,id));if(localItem)Object.assign(localItem,updated); const localLogs=payload.map(l=>({...l,itemId:l.itemid,actionType:l.actiontype,userId:l.userid,username:currentUser.username||'',dateKey:l.datekey,editedAt:null,editedBy:null,editDetail:'',time:l.time,unitCost:Number(l.unitcost||0)})); logs=[...localLogs,...logs];sortLogsNewestFirst();saveLocalState();clearTableDraft(tab,id);render();showSuccessToast(`${prepared.length} giao dịch đã được ghi nhận`); }catch(err){ console.error('Lỗi lưu bảng:',err);showInventoryNotice('❌ CHƯA LƯU ĐƯỢC',`${err.message||err}\n\nDữ liệu trên dòng chưa được ghi nhận.`); }finally{tableSavingKey='';} }
 function tableHeader(tab){ return tab==='raw'?`<thead><tr><th><div id="tableActiveGroup">Tất cả</div></th><th>Tồn đầu</th><th>Nhập kho</th><th>Xuất kho</th><th>Tồn kho</th><th>Xác nhận</th></tr></thead>`:`<thead><tr><th><div id="tableActiveGroup">Tất cả</div></th><th>Tồn đầu</th><th>Nấu thêm</th><th>Xuất bán</th><th>Thu hồi</th><th>Hủy</th><th>Tồn cuối</th><th>Xác nhận</th></tr></thead>`; }
 function tableRowRaw(item,report){ const key=tableDraftKey('raw',item.id),s=tableCurrentStats('raw',item); return `<tr class="data-row"><td><div class="item-cell-name">${tableEsc(item.name)}</div><div class="item-cell-unit">ĐVT: ${tableEsc(item.unit)}</div></td><td><div class="stock-static">${fmt(s.opening)}</div></td><td>${tableCellInput('raw',item,'import',report)}</td><td>${tableCellInput('raw',item,'export',report)}</td><td><div data-stock-end-key="${tableEsc(key)}" style="font-size:17px;font-weight:900;color:#0284c7">${fmt(tableStockEnd('raw',item))}</div></td><td><button type="button" data-save-key="${tableEsc(key)}" class="entry-save ${tableDraftHasData('raw',item.id)&&!report?'ready':''}" ${report||!tableDraftHasData('raw',item.id)?'disabled':''} onclick="saveTableRow('raw','${tableEsc(item.id)}')">Lưu</button></td></tr>`; }
