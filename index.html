@@ -103,7 +103,7 @@
     .audit-change { color:#9a3412; }
     .audit-edited-meta { margin-left:auto; white-space:nowrap; color:#c2410c; }
     /* Nhật Ký — thẻ giao dịch 2 bên, rõ người / mặt hàng / trạng thái */
-    .audit-transaction-card { background:#fff; border-radius:16px; padding:13px 14px; border:1px solid #d8e7f0; box-shadow:0 3px 12px rgba(15,23,42,.06); }
+   .audit-transaction-card { background:#fff; border-radius:16px; padding:13px 14px; border:1px solid #d8e7f0; box-shadow:0 3px 12px rgba(15,23,42,.06); }
     .audit-topline { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
     .audit-employee { color:#f8fafc; background:linear-gradient(135deg,#0f3d5e,#075985); padding:7px 11px; border-radius:10px; font-size:13px; font-weight:900; line-height:1.15; box-shadow:0 2px 5px rgba(7,89,133,.18); }
     .audit-time { color:#64748b; font-size:16px; font-weight:800; white-space:nowrap; }
@@ -453,6 +453,9 @@ let accounts = [];
 let raw = [];
 let fg = [];
 let logs = [];
+let inventoryRealtimeChannel = null;
+let inventoryRealtimeTimer = null;
+let inventoryRealtimeBusy = false;
 
 // ==========================================
 // 3. TẢI VÀ ĐỒNG BỘ DỮ LIỆU
@@ -482,13 +485,13 @@ async function fetchInitialData() {
     if (configRes.error) throw new Error(`Không thể tải cấu hình từ Cloud: ${configRes.error.message || configRes.error}`);
 
     if (accRes.data) accounts = accRes.data;
-    if (rawRes.data) raw = rawRes.data;
-    if (fgRes.data) fg = fgRes.data;
+    if (rawRes.data) raw = rawRes.data.map(x => normalizeInventoryItemNumbers(x, 'raw'));
+    if (fgRes.data) fg = fgRes.data.map(x => normalizeInventoryItemNumbers(x, 'fg'));
     normalizeSortOrders(raw);
     normalizeSortOrders(fg);
     
     if (logRes.data && logRes.data.length > 0) {
-      logs = logRes.data.map(l => ({
+      logs = logRes.data.map(l => normalizeInventoryLogNumbers({
         id: l.id,
         tab: l.tab,
         itemId: l.itemid,
@@ -508,7 +511,7 @@ async function fetchInitialData() {
         editedBy: l.editedby || null,
         time: l.time || '',
         unitCost: Number(l.unitcost || 0)
-      })).sort((a,b) => (Number(b.timestamp)||0) - (Number(a.timestamp)||0) || String(b.id).localeCompare(String(a.id)));
+      })).map(normalizeInventoryLogNumbers).sort((a,b) => (Number(b.timestamp)||0) - (Number(a.timestamp)||0) || String(b.id).localeCompare(String(a.id)));
       localStorage.setItem('awan_logs_backup', JSON.stringify(logs));
     } else {
       const backup = localStorage.getItem('awan_logs_backup');
@@ -551,9 +554,84 @@ Hệ thống đã dừng việc dùng Nhật Ký cũ trên máy để tránh tí
   }
 }
 
+
+async function syncCoreDataFromCloudSilently() {
+  const [rawRes, fgRes, logRes] = await Promise.all([
+    supabaseClient.from('raw_items').select('*'),
+    supabaseClient.from('fg_items').select('*'),
+    supabaseClient.from('logs').select('*').order('timestamp', { ascending: false }).order('id', { ascending: false })
+  ]);
+  if (rawRes.error) throw rawRes.error;
+  if (fgRes.error) throw fgRes.error;
+  if (logRes.error) throw logRes.error;
+
+  raw = (rawRes.data || []).map(x => normalizeInventoryItemNumbers(x, 'raw'));
+  fg = (fgRes.data || []).map(x => normalizeInventoryItemNumbers(x, 'fg'));
+  normalizeSortOrders(raw); normalizeSortOrders(fg);
+  logs = (logRes.data || []).map(l => normalizeInventoryLogNumbers({
+    id:l.id, tab:l.tab, itemId:l.itemid, item:l.item, action:l.action,
+    qty:Number(l.qty||0), unit:l.unit, before:Number(l.before||0), after:Number(l.after||0),
+    actionType:l.actiontype, user:l.user, userId:l.userid||'', username:l.username||'',
+    timestamp:Number(l.timestamp||0), dateKey:l.datekey||'', editedAt:l.editedat||null,
+    editedBy:l.editedby||null, time:l.time||'', unitCost:Number(l.unitcost||0)
+  }));
+  sortLogsNewestFirst();
+  saveLocalState();
+}
+
+function scheduleRealtimeCloudRefresh() {
+  clearTimeout(inventoryRealtimeTimer);
+  inventoryRealtimeTimer = setTimeout(async () => {
+    if (inventoryRealtimeBusy) return;
+    inventoryRealtimeBusy = true;
+    try {
+      await syncCoreDataFromCloudSilently();
+      // Khi đang nhập kiểm kê, không render lại modal vì như vậy sẽ mất các số người dùng đã nhập.
+      const modalOpen = document.getElementById('modal')?.classList.contains('show');
+      if (!modalOpen) render();
+    } catch (e) {
+      console.warn('Realtime sync failed:', e?.message || e);
+    } finally {
+      inventoryRealtimeBusy = false;
+    }
+  }, 350);
+}
+
+function startInventoryRealtime() {
+  if (inventoryRealtimeChannel) return;
+  inventoryRealtimeChannel = supabaseClient
+    .channel('sb-inventory-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'raw_items' }, scheduleRealtimeCloudRefresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'fg_items' }, scheduleRealtimeCloudRefresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'logs' }, scheduleRealtimeCloudRefresh)
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') console.info('SB Inventory Realtime: connected');
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.warn('SB Inventory Realtime:', status);
+    });
+}
+
 function roleLabel(role) { return ({ admin: 'Admin Owner', owner: 'Owner', manager: 'Quản Lý', staff: 'Nhân Viên' })[role] || role; }
 function dateTime() { return new Date().toLocaleString('vi-VN'); }
-function fmt(num) { return Number(num || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 }); }
+function fmt(num) { return normalizeQty1(num).toLocaleString('vi-VN', { maximumFractionDigits: 1, minimumFractionDigits: 0 }); }
+function normalizeQty1(value) {
+  const n = Number(String(value ?? '').replace(',', '.'));
+  if (!Number.isFinite(n)) return 0;
+  const rounded = Math.round((n + (n >= 0 ? Number.EPSILON : -Number.EPSILON)) * 10) / 10;
+  return Object.is(rounded, -0) ? 0 : Number(rounded.toFixed(1));
+}
+function normalizeInventoryItemNumbers(item, tab) {
+  if (!item) return item;
+  const fields = tab === 'raw'
+    ? ['opening','imported','exported','adjustment']
+    : ['opening','sales','production','returned','waste','adjustment'];
+  fields.forEach(k => { if (item[k] != null) item[k] = normalizeQty1(item[k]); });
+  return item;
+}
+function normalizeInventoryLogNumbers(log) {
+  if (!log) return log;
+  ['qty','before','after'].forEach(k => { if (log[k] != null) log[k] = normalizeQty1(log[k]); });
+  return log;
+}
 function fmtMoney(num) { return Number(num || 0).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + ' đ'; }
 function rawUnitCost(item) { const n = Number(item?.unit_cost ?? item?.unitCost ?? 0); return Number.isFinite(n) && n >= 0 ? n : 0; }
 function logUnitCost(log) { const n = Number(log?.unitCost ?? log?.unitcost ?? 0); return Number.isFinite(n) && n >= 0 ? n : 0; }
@@ -623,11 +701,8 @@ function applyLedgerEvent(tab, stock, log) {
   return stock;
 }
 
-function normalizeLedgerNumber(value, epsilon = 0.000001) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return 0;
-  if (Math.abs(n) < epsilon) return 0;
-  return Number(n.toFixed(6));
+function normalizeLedgerNumber(value) {
+  return normalizeQty1(value);
 }
 
 function calculateStockFromLogs(tab, item, sourceLogs, endTime = Infinity) {
@@ -801,6 +876,7 @@ document.addEventListener('visibilitychange', () => {
 
 async function syncItemToSupabase(tab, item) {
   const table = tab === 'raw' ? 'raw_items' : 'fg_items';
+  normalizeInventoryItemNumbers(item, tab);
   const { error } = await supabaseClient.from(table).upsert(item);
   if (error) throw error;
 }
@@ -1213,7 +1289,8 @@ function getAvailableStock(tab, item) {
 }
 
 function validatePositiveQty(qty) {
-  return Number.isFinite(Number(qty)) && Number(qty) > 0;
+  const n = Number(qty);
+  return Number.isFinite(n) && n > 0 && Math.abs(n - normalizeQty1(n)) < 1e-9;
 }
 
 function isStockDecreasingAction(tab, type) {
@@ -1586,7 +1663,7 @@ function openAdmin(section) {
         `}
         <div class="form-group">
           <label>Tồn kho ban đầu</label>
-          <input id="itemOpening" type="number" value="${editItem ? editItem.opening : 0}">
+          <input id="itemOpening" type="number" min="0" step="0.1" value="${editItem ? editItem.opening : 0}">
         </div>
 
         <div style="display:flex; gap:8px">
@@ -1658,7 +1735,7 @@ async function saveItem() {
   const type = document.getElementById('itemType').value;
   const name = document.getElementById('itemName').value.trim();
   const unit = document.getElementById('itemUnit').value.trim();
-  const opening = Number(document.getElementById('itemOpening')?.value || 0);
+  const opening = normalizeQty1(document.getElementById('itemOpening')?.value || 0);
 
   if (!name || !unit) return alert('Vui lòng nhập Tên mặt hàng và Đơn vị tính.');
   const arr = type === 'raw' ? raw : fg;
@@ -1924,7 +2001,7 @@ function editLog(id) {
   openModal(`
     <h2 style="font-size:18px">✏ Sửa nhật ký giao dịch</h2>
     <div class="notice-box" style="margin-top:10px">${l.action} - <b>${l.item}</b><br>Tạo bởi: <b>${l.user}</b><br>Số lượng hiện tại: <b style="font-size:16px">${fmt(l.qty)} ${l.unit}</b></div>
-    <div class="form-group"><label>Số lượng mới</label><input id="editAmount" type="number" min="0" step="any" value="${l.qty}"></div>
+    <div class="form-group"><label>Số lượng mới</label><input id="editAmount" type="number" min="0" step="0.1" value="${l.qty}"></div>
     <div class="modal-buttons"><button class="btn-cancel" onclick="closeModal()">Hủy</button><button class="btn-save" onclick="saveLogEdit()">Lưu thay đổi</button></div>
   `);
 }
@@ -2278,20 +2355,21 @@ async function applyInventoryStocktake() {
   inventorySaving = true;
   const date = document.getElementById('countDate')?.value || localDateKey();
   const saved = { ...(inventoryCounts[date] || {}) };
+  const all = [...raw.map(x=>['raw',x]), ...fg.map(x=>['fg',x])];
 
-  [...raw.map(x=>['raw',x]), ...fg.map(x=>['fg',x])].forEach(([tab,x]) => {
+  all.forEach(([tab,x]) => {
     const el = document.getElementById('count_'+tab+'_'+x.id);
     if (!el || el.value === '') return;
-    const n = Number(el.value);
+    const n = normalizeQty1(el.value);
     if (Number.isFinite(n) && n >= 0) saved[tab+'|'+x.id] = n;
   });
 
-  const changes = [];
-  [...raw.map(x=>['raw',x]), ...fg.map(x=>['fg',x])].forEach(([tab,x]) => {
+  let changes = [];
+  all.forEach(([tab,x]) => {
     const key = tab+'|'+x.id;
     if (saved[key] == null) return;
-    const system = stockAtDate(tab, x, date);
-    const actual = Number(saved[key]);
+    const system = normalizeQty1(stockAtDate(tab, x, date));
+    const actual = normalizeQty1(saved[key]);
     if (!Number.isFinite(actual) || actual < 0) return;
     if (Math.abs(actual - system) <= 1e-9) return;
     changes.push({tab, x, system, actual});
@@ -2316,49 +2394,118 @@ async function applyInventoryStocktake() {
     return;
   }
 
-  const payload = [];
-  // Kiểm kê hôm nay phải có timestamp thực tế để Tồn Cuối cập nhật NGAY.
-  // Nếu kiểm kê cho ngày đã qua, đặt timestamp ở cuối ngày đó để trở thành mốc tồn của ngày kế tiếp.
-  const todayKey = localDateKey();
-  const nowBase = date === todayKey
-    ? Date.now()
-    : getDayBoundaryMs(date, true) - Math.min(changes.length, 500);
-
-  for (let i = 0; i < changes.length; i++) {
-    const c = changes[i];
-    const id = 'log_inv_' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '_' + i;
-    const timestamp = nowBase + i;
-    payload.push({
-      id,
-      tab: c.tab,
-      itemid: c.x.id,
-      item: c.x.name,
-      action: 'Kiểm kê',
-      qty: c.actual,
-      unit: c.x.unit,
-      before: c.system,
-      after: c.actual,
-      actiontype: 'stocktake',
-      unitcost: c.tab === 'raw' ? rawUnitCost(c.x) : 0,
-      timestamp,
-      datekey: date,
-      userid: currentUser.id || currentUser.username || '',
-      user: `${currentUser.name} (${roleLabel(currentUser.role)})`,
-      time: new Date(timestamp).toLocaleString('vi-VN'),
-      editedat: null,
-      editedby: null
-    });
-  }
-
   try {
+    // QUAN TRỌNG: sau khi người dùng xác nhận, đọc lại Cloud một lần nữa.
+    // Nếu máy khác vừa thay đổi dữ liệu, tuyệt đối không ghi đè lên trạng thái cũ.
+    const [rawRes, fgRes, logRes] = await Promise.all([
+      supabaseClient.from('raw_items').select('*'),
+      supabaseClient.from('fg_items').select('*'),
+      supabaseClient.from('logs').select('*').order('timestamp', { ascending: false }).order('id', { ascending: false })
+    ]);
+    if (rawRes.error) throw new Error(`Không thể đọc Kho Thô mới nhất từ Cloud: ${rawRes.error.message || rawRes.error}`);
+    if (fgRes.error) throw new Error(`Không thể đọc Thành phẩm mới nhất từ Cloud: ${fgRes.error.message || fgRes.error}`);
+    if (logRes.error) throw new Error(`Không thể đọc Nhật Ký mới nhất từ Cloud: ${logRes.error.message || logRes.error}`);
+
+    const freshRaw = (rawRes.data || []).map(x => normalizeInventoryItemNumbers(x, 'raw'));
+    const freshFg = (fgRes.data || []).map(x => normalizeInventoryItemNumbers(x, 'fg'));
+    const freshLogs = (logRes.data || []).map(l => normalizeInventoryLogNumbers({
+      id:l.id, tab:l.tab, itemId:l.itemid, item:l.item, action:l.action,
+      qty:Number(l.qty||0), unit:l.unit, before:Number(l.before||0), after:Number(l.after||0),
+      actionType:l.actiontype, user:l.user, username:l.userid||'', userId:l.userid||'',
+      timestamp:Number(l.timestamp||0), dateKey:l.datekey||'', editedAt:l.editedat||null,
+      editedBy:l.editedby||null, time:l.time||'', unitCost:Number(l.unitcost||0)
+    }));
+
+    const freshAll = [...freshRaw.map(x=>['raw',x]), ...freshFg.map(x=>['fg',x])];
+    const freshMap = new Map(freshAll.map(([tab,x]) => [tab+'|'+x.id, {tab,x}]));
+    const freshChanges = [];
+    let staleDetected = false;
+
+    for (const c of changes) {
+      const fresh = freshMap.get(c.tab+'|'+c.x.id);
+      if (!fresh) throw new Error(`Mặt hàng “${c.x.name}” không còn tồn tại trên Cloud.`);
+      const freshSystem = normalizeQty1(calculateStockFromLogs(c.tab, fresh.x, freshLogs, date === localDateKey() ? Date.now() : getDayBoundaryMs(date, true)));
+      const enteredActual = normalizeQty1(saved[c.tab+'|'+c.x.id]);
+      if (Math.abs(freshSystem - c.system) > 1e-9) staleDetected = true;
+      if (Math.abs(enteredActual - freshSystem) <= 1e-9) continue;
+      freshChanges.push({tab:c.tab, x:fresh.x, system:freshSystem, actual:enteredActual});
+    }
+
+    if (staleDetected) {
+      inventorySaving = false;
+      return showInventoryNotice(
+        '⚠️ DỮ LIỆU VỪA THAY ĐỔI TRÊN MÁY KHÁC',
+        'Hệ thống phát hiện tồn Cloud đã thay đổi sau khi bạn mở màn hình kiểm kê.\n\nĐể tránh ghi đè dữ liệu của máy khác, lần kiểm kê này chưa được ghi.\n\nVui lòng đóng màn hình kiểm kê, mở lại và kiểm tra lại số thực tế trước khi xác nhận.'
+      );
+    }
+
+    changes = freshChanges;
+    if (!changes.length) {
+      inventorySaving = false;
+      closeModal();
+      render();
+      return showInventoryNotice('ℹ️ Không còn chênh lệch', 'Dữ liệu Cloud đã thay đổi và hiện không còn mặt hàng nào cần điều chỉnh.');
+    }
+
+    const payload = [];
+    const batchId = `inv_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+    const todayKey = localDateKey();
+    const nowBase = date === todayKey
+      ? Date.now()
+      : getDayBoundaryMs(date, true) - Math.min(changes.length, 500);
+
+    for (let i = 0; i < changes.length; i++) {
+      const c = changes[i];
+      const id = `log_${batchId}_${i}`;
+      const timestamp = nowBase + i;
+      payload.push({
+        id,
+        tab: c.tab,
+        itemid: c.x.id,
+        item: c.x.name,
+        action: 'Kiểm kê',
+        qty: normalizeQty1(c.actual),
+        unit: c.x.unit,
+        before: normalizeQty1(c.system),
+        after: normalizeQty1(c.actual),
+        actiontype: 'stocktake',
+        unitcost: c.tab === 'raw' ? rawUnitCost(c.x) : 0,
+        conversionunit: c.tab === 'raw' ? rawConversionUnit(c.x) : '',
+        conversionqty: c.tab === 'raw' ? Number(c.x.conversion_qty || 0) : 0,
+        dosage: c.tab === 'raw' ? Number(c.x.usage_per_product || 0) : 0,
+        wasteqty: c.tab === 'raw' ? Number(c.x.waste_qty || 0) : 0,
+        yieldqty: 0,
+        timestamp,
+        datekey: date,
+        userid: currentUser.id || currentUser.username || '',
+        user: `${currentUser.name} (${roleLabel(currentUser.role)})`,
+        time: new Date(timestamp).toLocaleString('vi-VN'),
+        editedat: null,
+        editedby: null
+      });
+    }
+
+    // Một request insert duy nhất = một batch. Sau đó bắt buộc kiểm tra đủ ID đã có trên Cloud.
     const { error: logError } = await supabaseClient.from('logs').insert(payload);
     if (logError) throw new Error(`Không thể ghi Nhật Ký kiểm kê Cloud: ${logError.message || logError}`);
 
-    // Log Cloud là nguồn sự thật. Không lưu lại bản nháp kiểm kê sau khi đã xác nhận.
+    const ids = payload.map(x => x.id);
+    const { data: verifyRows, error: verifyError } = await supabaseClient
+      .from('logs')
+      .select('id')
+      .in('id', ids);
+    if (verifyError) throw new Error(`Đã ghi kiểm kê nhưng không thể xác minh đủ Nhật Ký Cloud: ${verifyError.message || verifyError}`);
+
+    const verified = new Set((verifyRows || []).map(x => x.id));
+    const missing = ids.filter(id => !verified.has(id));
+    if (missing.length !== 0 || verified.size !== ids.length) {
+      throw new Error(`Kiểm kê chưa được xác minh đầy đủ trên Cloud: cần ${ids.length} dòng, xác nhận được ${verified.size} dòng.`);
+    }
+
     delete inventoryCounts[date];
     localStorage.removeItem('sb_inventory_counts');
 
-    const localLogs = payload.map(l => ({
+    const localLogs = payload.map(l => normalizeInventoryLogNumbers({
       ...l,
       itemId: l.itemid,
       actionType: l.actiontype,
@@ -2370,17 +2517,17 @@ async function applyInventoryStocktake() {
       editDetail: '',
       time: l.time
     }));
-    logs = [...localLogs, ...logs];
+    logs = [...localLogs, ...logs.filter(x => !verified.has(x.id))];
     sortLogsNewestFirst();
     saveLocalState();
 
     closeModal();
     render();
     inventorySaving = false;
-    showSuccessToast(`${changes.length} mặt hàng đã được kiểm kê`);
+    showSuccessToast(`${changes.length} mặt hàng đã được kiểm kê · đã xác minh ${changes.length}/${changes.length} Nhật Ký Cloud`);
   } catch (err) {
     inventorySaving = false;
-    return showInventoryNotice('❌ KIỂM KÊ KHÔNG HOÀN TẤT', `${err.message || err}\n\nKhông có dữ liệu kiểm kê nào được coi là thành công.`);
+    return showInventoryNotice('❌ KIỂM KÊ KHÔNG HOÀN TẤT', `${err.message || err}\n\nHệ thống không coi lần kiểm kê này là thành công.`);
   }
 }
 
@@ -2400,7 +2547,7 @@ function inventoryView(dateKey=localDateKey()){
     else if(inventoryTab==='fg_other') groupOk=tab==='fg' && (x.category||'Khác')==='Khác';
     return nameOk && groupOk;
   });
-  const rows=filtered.map(([tab,x])=>{ const system=stockAtDate(tab,x,dateKey); const key=tab+'|'+x.id; const actual=saved[key]; const diff=actual==null?null:Number(actual)-system; const cls=diff===null?'':Math.abs(diff)<1e-9?'diff-zero':diff>0?'diff-plus':'diff-minus'; return `<div class="count-row"><div class="count-head"><div><div class="tool-name">${x.name}</div><div class="tool-unit">${tab==='raw'?'Kho Thô':'Thành phẩm'} · ${x.unit}</div></div><div style="width:100px"><input class="tool-input" id="count_${tab}_${x.id}" type="number" min="0" step="any" value="${actual==null?'':actual}" placeholder="Thực tế"></div></div><div class="tool-metrics"><div class="tool-metric"><span>Tồn hệ thống</span><b>${fmt(system)}</b></div><div class="tool-metric"><span>Thực tế</span><b>${actual==null?'—':fmt(actual)}</b></div><div class="tool-metric"><span>Chênh lệch</span><b class="${cls}">${diff===null?'—':(diff>0?'+':'')+fmt(diff)}</b></div></div></div>`; }).join('');
+  const rows=filtered.map(([tab,x])=>{ const system=stockAtDate(tab,x,dateKey); const key=tab+'|'+x.id; const actual=saved[key]; const diff=actual==null?null:Number(actual)-system; const cls=diff===null?'':Math.abs(diff)<1e-9?'diff-zero':diff>0?'diff-plus':'diff-minus'; return `<div class="count-row"><div class="count-head"><div><div class="tool-name">${x.name}</div><div class="tool-unit">${tab==='raw'?'Kho Thô':'Thành phẩm'} · ${x.unit}</div></div><div style="width:100px"><input class="tool-input" id="count_${tab}_${x.id}" type="number" min="0" step="0.1" value="${actual==null?'':actual}" placeholder="Thực tế"></div></div><div class="tool-metrics"><div class="tool-metric"><span>Tồn hệ thống</span><b>${fmt(system)}</b></div><div class="tool-metric"><span>Thực tế</span><b>${actual==null?'—':fmt(actual)}</b></div><div class="tool-metric"><span>Chênh lệch</span><b class="${cls}">${diff===null?'—':(diff>0?'+':'')+fmt(diff)}</b></div></div></div>`; }).join('');
   const chip=(key,label)=>`<button class="filter-chip ${inventoryTab===key?'active':''}" onclick="inventoryTab='${key}';openModal(inventoryView('${dateKey}'))">${label}</button>`;
   return `<h2 style="font-size:18px">🧾 Kiểm kê hàng hóa</h2><div class="form-group" style="margin-top:10px"><label>Ngày kiểm kê</label><input id="countDate" type="date" value="${dateKey}" onchange="openModal(inventoryView(this.value))"></div><div class="tool-note">Nhập <b>tồn thực tế</b> sau khi đếm/cân. Nếu có chênh lệch, <b>Kiểm kê</b> là ngoại lệ duy nhất được phép cập nhật Tồn hệ thống và ghi Nhật Ký kiểm kê.</div><div class="inventory-filter"><input class="search-box" style="margin-bottom:8px" id="inventorySearch" type="search" value="${String(inventorySearch||'').replace(/"/g,'&quot;')}" placeholder="🔎 Tìm tên hàng hóa..." oninput="inventorySearch=this.value;openModal(inventoryView('${dateKey}'))"><div class="filter-scroll" style="margin-bottom:10px">${chip('all','Tất cả')}${chip('raw_hongphat','HỒNG PHÁT')}${chip('raw_tnt','TNT')}${chip('raw_baobì','BAO BÌ')}${chip('raw_other','Khác (Kho Thô)')}${chip('fg_drink','Đồ uống')}${chip('fg_topping','Topping')}${chip('fg_other','Khác (Thành phẩm)')}</div></div><div style="font-size:11px;color:var(--text-muted);margin:0 0 8px">Hiển thị ${filtered.length}/${all.length} mặt hàng</div><div>${rows || '<div class="empty-state">Không tìm thấy hàng hóa phù hợp.</div>'}</div><div class="inventory-actions"><button class="inventory-close" onclick="closeModal()">Đóng</button>${isOwnerRole()?'<button type="button" class="inventory-adjust" onclick="window.applyInventoryStocktake(); return false;">✓ Xác nhận kiểm kê</button>':''}</div>`;
 }
@@ -2520,7 +2667,7 @@ async function saveOrdering() {
 let tableDrafts = {};
 let tableSavingKey = '';
 function tableDraftKey(tab,id){ return `${tab}|${id}`; }
-function setTableDraft(tab,id,type,value,el){ const key=tableDraftKey(tab,id); if(!tableDrafts[key]) tableDrafts[key]={}; const n=value===''?0:Number(value); tableDrafts[key][type]=Number.isFinite(n)&&n>0?n:0; if(el) el.classList.toggle('changed',tableDrafts[key][type]>0); updateTableRowUI(tab,id); }
+function setTableDraft(tab,id,type,value,el){ const key=tableDraftKey(tab,id); if(!tableDrafts[key]) tableDrafts[key]={}; const n=value===''?0:normalizeQty1(value); tableDrafts[key][type]=Number.isFinite(n)&&n>0?n:0; if(el) el.classList.toggle('changed',tableDrafts[key][type]>0); updateTableRowUI(tab,id); }
 function clearTableDraft(tab,id){ delete tableDrafts[tableDraftKey(tab,id)]; }
 function tableDraftHasData(tab,id){ const d=tableDrafts[tableDraftKey(tab,id)]||{}; return Object.values(d).some(v=>Number(v)>0); }
 function tableEsc(v){ return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
@@ -2566,11 +2713,11 @@ function openTableEntryModal(tab,id,type){
   const labels={import:'Nhập kho',export:'Xuất kho',production:'Nấu thêm',sales:'Xuất bán',return:'Thu hồi',waste:'Hủy món'};
   const q=tableLiveQty(tab,item,type);
   const costNote = isOwnerRole() && tab === 'raw' && type === 'import' ? `<div style=\"margin-top:8px;font-size:12px;color:#166534;font-weight:800\">Giá vốn đang dùng: ${rawUnitCost(item) ? fmtMoney(rawUnitCost(item)) + ' / ' + tableEsc(item.unit) : 'Chưa đặt'}</div>` : '';
-  openModal(`<h2 style="font-size:18px">${tableEsc(item.name)}</h2><div style="font-size:13px;color:var(--text-muted);margin-top:2px">${tableEsc(labels[type]||type)} · ĐVT: <b>${tableEsc(item.unit)}</b></div><div class="notice-box" style="margin-top:10px">Đã ghi hôm nay: <b style="font-size:17px">${fmt(q.actual)} ${tableEsc(item.unit)}</b>${q.pending>0?`<br><span style="font-size:12px;color:#0369a1">Đang chờ lưu: +${fmt(q.pending)} ${tableEsc(item.unit)}</span>`:''}</div>${costNote}<div class="form-group"><label>Nhập thêm</label><input id="tableEntryAmount" type="number" min="0.001" step="any" inputmode="decimal" placeholder="Nhập số lượng..." autofocus></div><div class="entry-help" style="margin-top:-2px">Số đã ghi hôm nay được giữ nguyên. Số bạn nhập sẽ được cộng thêm vào giao dịch của hôm nay.</div><div class="modal-buttons"><button class="btn-cancel" onclick="closeModal()">Hủy</button><button class="btn-save" onclick="confirmTableEntry('${tab}','${tableEsc(item.id)}','${type}')">➕ Thêm</button></div>`);
+  openModal(`<h2 style="font-size:18px">${tableEsc(item.name)}</h2><div style="font-size:13px;color:var(--text-muted);margin-top:2px">${tableEsc(labels[type]||type)} · ĐVT: <b>${tableEsc(item.unit)}</b></div><div class="notice-box" style="margin-top:10px">Đã ghi hôm nay: <b style="font-size:17px">${fmt(q.actual)} ${tableEsc(item.unit)}</b>${q.pending>0?`<br><span style="font-size:12px;color:#0369a1">Đang chờ lưu: +${fmt(q.pending)} ${tableEsc(item.unit)}</span>`:''}</div>${costNote}<div class="form-group"><label>Nhập thêm</label><input id="tableEntryAmount" type="number" min="0.1" step="0.1" inputmode="decimal" placeholder="Nhập số lượng..." autofocus></div><div class="entry-help" style="margin-top:-2px">Số đã ghi hôm nay được giữ nguyên. Số bạn nhập sẽ được cộng thêm vào giao dịch của hôm nay.</div><div class="modal-buttons"><button class="btn-cancel" onclick="closeModal()">Hủy</button><button class="btn-save" onclick="confirmTableEntry('${tab}','${tableEsc(item.id)}','${type}')">➕ Thêm</button></div>`);
   setTimeout(()=>document.getElementById('tableEntryAmount')?.focus(),50);
 }
 function confirmTableEntry(tab,id,type){
-  const qty=Number(document.getElementById('tableEntryAmount')?.value||0);
+  const qty=normalizeQty1(document.getElementById('tableEntryAmount')?.value||0);
   if(!validatePositiveQty(qty)) return showInventoryNotice('⚠️ Số lượng không hợp lệ','Vui lòng nhập số lượng lớn hơn 0.');
   const key=tableDraftKey(tab,id),old=Number(tableDrafts[key]?.[type]||0);
   setTableDraft(tab,id,type,old+qty);
@@ -2957,6 +3104,7 @@ fetchInitialData = async function(){ await _oldFetchInitialData(); if(currentUse
 
 // Khởi chạy ứng dụng
 initSession();
+startInventoryRealtime();
 fetchInitialData();
 </script>
 </body>
