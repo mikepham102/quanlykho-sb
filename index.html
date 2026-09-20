@@ -446,13 +446,46 @@ function sortLogsNewestFirst() {
   return logs;
 }
 
+// Supabase REST mặc định có thể trả tối đa 1.000 dòng cho một SELECT.
+// Nhật Ký kho đã vượt 1.000 dòng, vì vậy tuyệt đối không được dùng
+// .select('*') một lần cho toàn bộ logs: nếu chỉ nhận 1.000 dòng mới nhất,
+// các Kiểm kê cũ sẽ biến mất khỏi bộ nhớ và Ledger có thể quay về tồn âm.
+// Hàm này luôn phân trang cho tới khi lấy đủ toàn bộ Log Cloud.
+async function fetchAllCloudLogs(itemId = null) {
+  const PAGE_SIZE = 1000;
+  const allRows = [];
+  let from = 0;
+
+  while (true) {
+    let query = supabaseClient
+      .from('logs')
+      .select('*')
+      .order('timestamp', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (itemId != null) query = query.eq('itemid', itemId);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const rows = Array.isArray(data) ? data : [];
+    allRows.push(...rows);
+
+    if (rows.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return allRows;
+}
+
 async function fetchInitialData() {
   try {
-    const [accRes, rawRes, fgRes, logRes, configRes] = await Promise.all([
+    const [accRes, rawRes, fgRes, cloudLogRows, configRes] = await Promise.all([
       supabaseClient.from('accounts').select('*'),
       supabaseClient.from('raw_items').select('*'),
       supabaseClient.from('fg_items').select('*'),
-      supabaseClient.from('logs').select('*').order('timestamp', { ascending: false }).order('id', { ascending: false }),
+      fetchAllCloudLogs(),
       supabaseClient.from('config').select('*').in('key', ['shop_location','fabi_reconcile','inventory_report_snapshots'])
     ]);
 
@@ -462,7 +495,6 @@ async function fetchInitialData() {
     if (accRes.error) throw new Error(`Không thể tải tài khoản từ Cloud: ${accRes.error.message || accRes.error}`);
     if (rawRes.error) throw new Error(`Không thể tải Kho Thô từ Cloud: ${rawRes.error.message || rawRes.error}`);
     if (fgRes.error) throw new Error(`Không thể tải Thành phẩm từ Cloud: ${fgRes.error.message || fgRes.error}`);
-    if (logRes.error) throw new Error(`Không thể tải Nhật Ký từ Cloud: ${logRes.error.message || logRes.error}`);
     if (configRes.error) throw new Error(`Không thể tải cấu hình từ Cloud: ${configRes.error.message || configRes.error}`);
 
     if (accRes.data) accounts = accRes.data;
@@ -471,8 +503,8 @@ async function fetchInitialData() {
     normalizeSortOrders(raw);
     normalizeSortOrders(fg);
     
-    if (Array.isArray(logRes.data)) {
-      logs = logRes.data.map(l => normalizeInventoryLogNumbers({
+    if (Array.isArray(cloudLogRows)) {
+      logs = cloudLogRows.map(l => normalizeInventoryLogNumbers({
         id: l.id,
         tab: l.tab,
         itemId: l.itemid,
@@ -536,19 +568,18 @@ Hệ thống đã dừng việc dùng Nhật Ký cũ trên máy để tránh tí
 
 
 async function syncCoreDataFromCloudSilently() {
-  const [rawRes, fgRes, logRes] = await Promise.all([
+  const [rawRes, fgRes, cloudLogRows] = await Promise.all([
     supabaseClient.from('raw_items').select('*'),
     supabaseClient.from('fg_items').select('*'),
-    supabaseClient.from('logs').select('*').order('timestamp', { ascending: false }).order('id', { ascending: false })
+    fetchAllCloudLogs()
   ]);
   if (rawRes.error) throw rawRes.error;
   if (fgRes.error) throw fgRes.error;
-  if (logRes.error) throw logRes.error;
 
   raw = (rawRes.data || []).map(x => normalizeInventoryItemNumbers(x, 'raw'));
   fg = (fgRes.data || []).map(x => normalizeInventoryItemNumbers(x, 'fg'));
   normalizeSortOrders(raw); normalizeSortOrders(fg);
-  logs = (logRes.data || []).map(l => normalizeInventoryLogNumbers({
+  logs = (cloudLogRows || []).map(l => normalizeInventoryLogNumbers({
     id:l.id, tab:l.tab, itemId:l.itemid, item:l.item, action:l.action,
     qty:Number(l.qty||0), unit:l.unit, before:Number(l.before||0), after:Number(l.after||0),
     actionType:l.actiontype, user:l.user, userId:l.userid||'', username:l.username||'',
@@ -1499,7 +1530,7 @@ async function confirmAllDrafts() {
     const itemTable = draftTab === 'raw' ? 'raw_items' : 'fg_items';
     const [{ data: freshItem, error: freshError }, { data: freshLogRows, error: freshLogsError }] = await Promise.all([
       supabaseClient.from(itemTable).select('*').eq('id', itemFromUi.id).maybeSingle(),
-      supabaseClient.from('logs').select('*').eq('itemid', itemFromUi.id)
+      fetchAllCloudLogs(itemFromUi.id)
     ]);
 
     if (freshError) {
@@ -2411,18 +2442,17 @@ Hệ thống không tự đổi các giá trị lỗi thành 0.`);
   try {
     // QUAN TRỌNG: sau khi người dùng xác nhận, đọc lại Cloud một lần nữa.
     // Nếu máy khác vừa thay đổi dữ liệu, tuyệt đối không ghi đè lên trạng thái cũ.
-    const [rawRes, fgRes, logRes] = await Promise.all([
+    const [rawRes, fgRes, cloudLogRows] = await Promise.all([
       supabaseClient.from('raw_items').select('*'),
       supabaseClient.from('fg_items').select('*'),
-      supabaseClient.from('logs').select('*').order('timestamp', { ascending: false }).order('id', { ascending: false })
+      fetchAllCloudLogs()
     ]);
     if (rawRes.error) throw new Error(`Không thể đọc Kho Thô mới nhất từ Cloud: ${rawRes.error.message || rawRes.error}`);
     if (fgRes.error) throw new Error(`Không thể đọc Thành phẩm mới nhất từ Cloud: ${fgRes.error.message || fgRes.error}`);
-    if (logRes.error) throw new Error(`Không thể đọc Nhật Ký mới nhất từ Cloud: ${logRes.error.message || logRes.error}`);
 
     const freshRaw = (rawRes.data || []).map(x => normalizeInventoryItemNumbers(x, 'raw'));
     const freshFg = (fgRes.data || []).map(x => normalizeInventoryItemNumbers(x, 'fg'));
-    const freshLogs = (logRes.data || []).map(l => normalizeInventoryLogNumbers({
+    const freshLogs = (cloudLogRows || []).map(l => normalizeInventoryLogNumbers({
       id:l.id, tab:l.tab, itemId:l.itemid, item:l.item, action:l.action,
       qty:Number(l.qty||0), unit:l.unit, before:Number(l.before||0), after:Number(l.after||0),
       actionType:l.actiontype, user:l.user, username:l.userid||'', userId:l.userid||'',
@@ -2954,7 +2984,7 @@ async function verifyCloudLedgerItem(tab, itemId, expectedStock = null) {
   const table = tab === 'raw' ? 'raw_items' : 'fg_items';
   const [{data:item,error:itemError},{data:rows,error:logError}] = await Promise.all([
     supabaseClient.from(table).select('*').eq('id', itemId).maybeSingle(),
-    supabaseClient.from('logs').select('*').eq('itemid', itemId)
+    fetchAllCloudLogs(itemId)
   ]);
   if (itemError) throw new Error(`Không thể xác minh mặt hàng trên Cloud: ${itemError.message || itemError}`);
   if (logError) throw new Error(`Không thể xác minh Nhật Ký trên Cloud: ${logError.message || logError}`);
@@ -2992,7 +3022,7 @@ async function saveTableRow(tab,id){
     const itemTable=tab==='raw'?'raw_items':'fg_items';
     const [{data:freshItem,error:freshError},{data:cloudRows,error:logsError}]=await Promise.all([
       supabaseClient.from(itemTable).select('*').eq('id',item.id).maybeSingle(),
-      supabaseClient.from('logs').select('*').eq('itemid',item.id)
+      fetchAllCloudLogs(item.id)
     ]);
     if(freshError||!freshItem)throw new Error(freshError?.message||'Không tìm thấy dữ liệu mặt hàng trên Cloud.');
     if(logsError)throw new Error(`Không thể đọc Nhật Ký Cloud: ${logsError.message||logsError}`);
@@ -3059,17 +3089,16 @@ function tableView(tab){ const report=isDateFilterActive(),arr=tab==='raw'?raw:f
 // QA Ledger: có thể gọi từ DevTools: await window.sbCheckLedgerIntegrity()
 // Không thay đổi dữ liệu. Chỉ đọc Cloud và báo các mặt hàng có vấn đề sau mốc kiểm kê.
 async function sbCheckLedgerIntegrity() {
-  const [rawRes, fgRes, logRes] = await Promise.all([
+  const [rawRes, fgRes, logRows] = await Promise.all([
     supabaseClient.from('raw_items').select('*'),
     supabaseClient.from('fg_items').select('*'),
-    supabaseClient.from('logs').select('*')
+    fetchAllCloudLogs()
   ]);
   if(rawRes.error) throw rawRes.error;
   if(fgRes.error) throw fgRes.error;
-  if(logRes.error) throw logRes.error;
   const rawItems=(rawRes.data||[]).map(x=>normalizeInventoryItemNumbers(x,'raw'));
   const fgItems=(fgRes.data||[]).map(x=>normalizeInventoryItemNumbers(x,'fg'));
-  const cloudLogs=(logRes.data||[]).map(l=>normalizeInventoryLogNumbers({
+  const cloudLogs=(logRows||[]).map(l=>normalizeInventoryLogNumbers({
     id:l.id,tab:l.tab,itemId:l.itemid,item:l.item,action:l.action,qty:Number(l.qty||0),unit:l.unit,
     before:Number(l.before||0),after:Number(l.after||0),actionType:l.actiontype,timestamp:Number(l.timestamp||0),
     dateKey:l.datekey||'',time:l.time||''
